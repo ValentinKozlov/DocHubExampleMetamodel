@@ -51,14 +51,14 @@ entities:
                 })
             };
             $domains := $split($id, ".");
-            "Прикладная архитектура/Роли систем/" & $join($map($domains, function($domain, $index) {(
+            "Прикладная архитектура/Функционал систем/" & $join($map($domains, function($domain, $index) {(
                 $lookup($aspects, $join($arrleft($domains, $index), ".")).title
             )}), "/");
         )};
         [         
           {
               "link": "/entities/aspects/blank?dh-aspect-id=zayavka_na_proverku",
-              "location": "Прикладная архитектура/Роли систем"
+              "location": "Прикладная архитектура/Функционал систем"
           },
           $aspects.$spread().{
               "link": "/entities/aspects/blank?dh-aspect-id=" & $keys()[0],     /* Формируем ссылку на карточку */
