@@ -1,8 +1,7 @@
 entities:
   # Типы кластеров
-  menu:
-    title: Menu
- 
+  dochub_menu:
+    title: Menu 
     menu: >
       (
         [
