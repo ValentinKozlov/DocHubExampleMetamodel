@@ -8,14 +8,20 @@ entities: # Сущности расширенной метамодели
       (
         [
           {
+            "location": "Информационная архитектура",
+            "order": 3000
+          },
+          {
             "icon": *.icon,
             "link": "entities/business_entities/business_entities_list",
-            "location": "03. Информационная архитектура/01. Бизнес-сущности"
+            "location": "Информационная архитектура/Бизнес-сущности",
+            "order": 3100
           },
           {
             "icon": *.icon,
             "link": "entities/business_entities/business_entities_in_systems",
-            "location": "03. Информационная архитектура/02. Список бизнес-сущностей в системах"
+            "location": "Информационная архитектура/Список бизнес-сущностей в системах",
+            "order": 3200
           }
         ]
       )

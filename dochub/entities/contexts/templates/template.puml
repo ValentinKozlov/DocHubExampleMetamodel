@@ -117,22 +117,26 @@ skinparam component<<Person>> {
     %set_variable_value("$join_append", 0)
 !endprocedure
 
-!unquoted procedure $Entity($entity, $ACName, $id, $ACType, $Colored = "")
+!unquoted procedure $Entity($entity, $ACName, $id, $ACType, $color="")
     $join_start()
     !if ($entity == component)
-        component $id $Colored [
+        component $id $color[
         <b>$ACName</b>
         ====
     !elseif ($entity == system)
-        component $id $Colored [
+        component $id $color[
+            <b>$ACName</b>
+            ====
+    !elseif ($entity == unit)
+        component $id [
             <b>$ACName</b>
             ====
     !elseif ($entity == actor || $entity == person)
-        actor $id [
+        actor $id $color[
         ..===$ACName..
         ]
     !else
-        $entity $id [
+        $entity $id $color[
             <b>$ACName</b>
             ====
     !endif
@@ -142,6 +146,8 @@ skinparam component<<Person>> {
     !if ($entity == component)
     ]
     !elseif ($entity == system)
+    ]
+    !elseif ($entity == unit)
     ]
     !elseif ($entity == actor || $entity == person)
 'nothing
@@ -157,25 +163,20 @@ skinparam component<<Person>> {
         !if ($val != 0)
         ---
         !endif
-        * $prop
+        $prop
     !elseif ($entity == system)
-        * $prop
+        $prop
     !elseif ($entity == actor || $entity == person)
 'nothing
     !else
-        * $prop
+        $prop
     !endif
 !endprocedure
 
 !unquoted procedure $EntityExpand($entity, $ID)
-    !if ($entity == component)
+    !if ($entity == component || $entity == system || $entity == collections)
         ---
         [[/entities/contexts/{{presentation}}?dh-context-id=$ID ≫≫]]
-    !elseif ($entity == system)
-        ---
-        [[/entities/contexts/{{presentation}}?dh-context-id=$ID ≫≫]]
-    !elseif ($entity == actor || $entity == person)
-'nothing
     !else
 'nothing
     !endif

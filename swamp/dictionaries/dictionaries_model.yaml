@@ -14,7 +14,7 @@ entities: # Сущности расширенной метамодели
                     })
                 };
                 $domains := $split($id, ".");
-                "08. Справочники/" & $join($map($domains, function($domain, $index) {(
+                "Справочники/" & $join($map($domains, function($domain, $index) {(
                     $lookup($dictionaries, $join($arrleft($domains, $index), ".")).title
                     )}), "/");
             )};
@@ -22,12 +22,13 @@ entities: # Сущности расширенной метамодели
             $append([{
                 "icon": *.icon,                                                 /* Получаем иконку */
                 "link": "entities/dictionaries/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
-                "location": "08. Справочники"                                    /* Расположение в меню */
+                "location": "Справочники"                                    /* Расположение в меню */
             }],
                 [$.dictionaries.$spread().{
                     "icon": *.icon,                                             /* Получаем иконку */
-                    "link": "entities/dictionaries/dictionary_card?id=" & $keys()[0],     /* Формируем ссылку на бланк документ */
-                    "location": $makeLocation($keys()[0])                       /* Формируем расположение в меню */
+                    "link": "entities/dictionaries/" & (($.*.presentation) ? $.*.presentation : "dictionary_card") & "?id=" & $keys()[0],     /* Формируем ссылку на бланк документ */
+                    "location": $makeLocation($keys()[0]),                      /* Формируем расположение в меню */
+                    "order": *.order
                 }][location]
             );
         )
