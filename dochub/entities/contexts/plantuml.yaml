@@ -12,19 +12,23 @@ entities:
       #   manifest   - данные архитектуры
       #   components - список компонентов в формате fetchComponents
       #   areas      - список компонентов в формате fetchAreas
+      #   focusId    - идентификатор требующий фокус
       makePumlComponentDiagram: >
         (
           /* Обрабатываем параметры */
           $areas := areas;
           $components := components;
           $manifest := manifest;
+          $focusId := focusId;
         
+          $stopBracketsCount := function($a, $b) {$a = 0 ? "}\n" : $a & "}\n"};
+          
           $join($map($areas, function($domain, $index) {(
               $result := "";
               $component := $lookup($components, $domain);
               $originComponent := $lookup($manifest.components, $domain);
               $context := $lookup($manifest.contexts, $domain);
-        
+              $domain_plantuml := $replace($domain, '-', '_');
               /* Определяем является ли элемент областью */
               $isAreaBegin := $areas[$index + 1].$substring(0, $domain.$length() + 1) = $domain & ".";
         
@@ -33,9 +37,9 @@ entities:
                       $context.title ? $context.title : $domain
                   );
                       "$Region("
-                      & $domain
+                      & $domain_plantuml
                       & ",\"[[/architect/components/"
-                      & $domain
+                      & $domain_plantuml
                       & " " & $title
                       & "]]\", ) {\n";
               ) : "");
@@ -45,24 +49,38 @@ entities:
                   $not($isAreaBegin) and $component ? (
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
+                      $system_rate := $eval($manifest.functions.get_systems_total_rating, {'system_id': $domain,
+                        'components': $manifest.components, 'dictionaries': $manifest.dictionaries, 'functions': $manifest.functions});
+                      $color := $domain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
                       $result := "$Entity(\"" 
                           & $entity 
                           & "\", \""
-                          & "[[/architect/components/" & $domain & " " & $component.title & "]]"
+                          & "[[/architect/components/" & $domain_plantuml & " " & $component.title & "]]"
                           & "\", " 
-                          & $domain
-                          & ", ,"& ($exists($component.color) ? ("#" & $component.color) : ("")) &")\n";
+                          & $domain_plantuml                          
+                          & ", \""
+                          & $component.type
+                          & "\", \""
+                          & $color
+                          & "\" )\n";
         
                       /* Добавляем аспекты */
                       $result := $result & $join($component.aspects.(
                           $aspect := $lookup($manifest.aspects, $);
                           $title := $aspect ? $aspect.title : $;
+                          $ = $focusId ?
                           "$EntityAspect(\""
                           & $entity
-                          & "\",\"[[/architect/aspects/"
-                          & $
+                          & "\",\" <back:#FFBBCC>"
+                          & $title
+                          & "\")\n"
+                          :
+                          "$EntityAspect(\""
+                          & $entity
+                          & "\",\"* [[/architect/aspects/"
+                          & $encodeUrlComponent($)
                           & " " 
-                          & $title 
+                          & $title
                           & "]]\")\n"
                       ));
         
@@ -86,7 +104,10 @@ entities:
               $result & (
                 $count($split($domain, ".")) > 1 
                 and ($count($split($domain, ".")) > $count($split($areas[$index + 1], "."))
-              ) ? "}\n" : "");
+              ) ? (
+                $m := $areas[$index + 1] ? 0 : -1;
+                $reduce([0..($count($split($domain, ".")) - $count($split($areas[$index + 1], ".")) + $m)], $stopBracketsCount);
+              ) : "");
           )}));
         )
       # Генерирует PlantUML код связей для диаграммы компонентов
@@ -95,7 +116,7 @@ entities:
       makePumlComponentsLinks: >
         (
           $join(links.(
-            from & " " & direction & " " & to & (title ? ": " & title : "") & "\n"
+            $replace(from, '-', '_') & " " & direction & " " & $replace(to, '-', '_') & (title ? ": " & title : "") & "\n"
           ))
         )
     # Представления контекстов в PlantUML
@@ -109,7 +130,11 @@ entities:
             "dh-context-id":
               title: Идентификатор контекста
               type: string
-              pattern: ^[a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
+            "dh-focus-id":
+              title: Идентификатор требующий подсветку
+              type: string
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
           required:
             - dh-context-id
         type: plantuml
@@ -145,6 +170,7 @@ entities:
         source: >
           (
             $id := $params."dh-context-id";
+            $focusId := $params."dh-focus-id";
             /* Получаем доступ к оригинальным данным */
             $manifest := _origin ? _origin : $;
             /* Получаем контекст */
@@ -158,24 +184,30 @@ entities:
             $defFunctions := $manifest.entities.contexts.api;
           
             /* Получаем коллекцию дефолтных параметров */
-            $defConfig := $manifest.entities.contexts.config; 
+            $defConfig := $manifest.entities.contexts.config;
+          
+            /* Получаем параметры из контекста */
+            $customConfig := $context.config;
+          
+            /* Формируем итоговый конфиг */
+            $config := $mergedeep([$defConfig,$customConfig]);
           
             /* Определяем движок рендеринга */
             $renderCore := $lookup({
               "elk": "!pragma layout elk",
               "smetana": "!pragma layout smetana"
-            }, $defConfig.renderCore);
+            }, $config.renderCore);
 
             /* Формируем заголовок */
             $header := "$Header(\"" & ($context.title ? $context.title : $id ) & "\", \"" & $context.uml."$autor" & "\", \"" & $context.uml."$version" & "\" , \"" & $context.uml."$moment" & "\")\n";
 
             /* Получаем все компоненты входящие в контекст */
-            $components := $eval($defFunctions.fetchComponents, {
+            $components := $eval($defFunctions.fetchComponents, $merge([$params, {
               "manifest": $manifest,
               "contextId": $id,
               "extra-links": $isExtraLinks,
               "componentId": $params.componentId
-            });
+            }]));
 
             /* Генерируем области */
             $areas := $eval($defFunctions.fetchAreas, {
@@ -186,7 +218,8 @@ entities:
             $elements := $eval($defFunctions.makePumlComponentDiagram, {
               "manifest": $manifest,
               "areas": $areas,
-              "components": $components
+              "components": $components,
+              "focusId": $focusId
             });
 
             /* Получаем список связей */

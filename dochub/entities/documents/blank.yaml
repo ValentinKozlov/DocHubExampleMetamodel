@@ -12,14 +12,14 @@ entities:
             "dh-doc-id":
               title: Идентификатор документа
               type: string
-              pattern: ^[a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
           required:
             - dh-doc-id
         $constructor: >
           (
             /* Получаем объект документа */ 
             $doc := $lookup(docs, $params."dh-doc-id");
-            /* Для рендера берем за основу объек документа */
+            /* Для рендера берем за основу объект документа */
             $merge([$doc, (
               {
                 "$base": "/docs/" & $params."dh-doc-id"

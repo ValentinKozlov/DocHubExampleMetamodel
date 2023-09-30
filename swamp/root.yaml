@@ -1,7 +1,10 @@
 imports:
   - business_entities/root.yaml
-  - dictionaries/root.yaml
-  - dochub_menu/root.yaml
+  - dictionaries/root.yaml  
+  - environments/root.yaml
+  - libraries/root.yaml  
+  - sequence_diagrams/root.yaml
+  - swamp_structure/root.yaml
   
   
-  
+

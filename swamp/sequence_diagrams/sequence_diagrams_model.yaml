@@ -1,0 +1,169 @@
+entities:
+  sequences:
+    title: Диаграммы последовательности
+    description: Бизнес-сценарии в формате Sequence-диаграмм
+    presentations:
+      blank:
+        type: plantuml
+        template: templates/blank.puml
+        source: > # Для рендера шаблона собираем список задействованных в steps компонентов и данные самого описания, обогащенные ссылками на контракты
+          (          
+              $components := $.components;
+              $obj := $lookup($.sequences, $params.id); 
+              $makeLink := function($entity) {(
+                /* В зависимости от контракта ссылка формируется разными способами */
+                $entity.contract ? 
+                  $join([
+                    "[[",
+                    $substring($entity.contract, 0, 4) = 'http' ?
+                      "" : /* готовые ссылки не трогаем, выведем как есть */
+                      $contains($entity.contract, "/") ? 
+                        "/" : /* наличие слэша говорит, что это ссылка на документ докхаба, в том числе на другую диаграмму */
+                        "/docs/", /* по умолчанию считаем, что все прочее это id документа */
+                      $entity.contract,
+                      " ",
+                      $entity.value,
+                      "]]"
+                  ]) : 
+                  $entity.value; /* контракт не указан, ссылки не будет */
+              )};
+          
+              $components := $distinct($obj.groups.steps.$spread().($merge([{"id": $.from}, {"id": $.to}, $res]))).$spread().( 
+                  $component := $lookup($components, $.id);
+                  $component ? 
+                    { /* компонент с таким id есть, линкуем */
+                        "id": $.id,
+                        "entity": $component.entity in ['actor', 'database', 'queue', 'collections', 'entity'] ? $component.entity : "participant",
+                        "value": "[[/architect/components/" & $.id & " " & $component.title & "]]"
+                    } : 
+                    { /* покажем простой блок с текстом */
+                      "id": $.id,
+                      "entity": "participant",
+                      "value": $.id
+                    }
+              );
+
+              $merge([{"components": $components, "title":$obj.title}, {
+                  "groups": $obj.groups.(
+                  {
+                      "title": $.title,
+                      "steps": $map($.steps, function($v, $i) {
+                          {
+                              "from": $components[id=$v.from].id,
+                              "to": $components[id=$v.to].id,
+                              /* Проверяем, нужна ли стрелка с возвратом управления. Если текст не указан, подставляем пробел */
+                              "return": $exists($v.return) ? ($v.return ? $v.return : " ") : false,
+                              "value": $makeLink($v)
+                          }
+                      }),
+                      "triggers": $.triggers,
+                      "results": $.results
+                  }
+              )
+              }])
+          )
+
+    schema: # JSON Schema контролирующая описание объекта сущности
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_\\.]*":
+          type: object
+          additionalProperties: false
+          properties:
+            icon:
+              title: Иконка
+              type: string
+              minLength: 2
+            title:
+              title: Наименование
+              type: string
+              minLength: 5
+            location:
+              title: Путь к документу
+              type: string
+              minLength: 2
+            groups:
+              title: Блок действий
+              type: array
+              minLength: 1
+              items:
+                type: object
+                properties:
+                  title:
+                    type: string
+                    title: Заголовок блока
+                  triggers:
+                    title: Первоначальное состояние или активирующее действие
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      minLength: 5
+                  steps:
+                    title: Описание взаимодействия
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        from:
+                          title: От кого
+                          type: string
+                          minLength: 1
+                        to:
+                          title: Кому
+                          type: string
+                          minLength: 1
+                        value:
+                          title: Что
+                          type: string
+                          minLength: 1
+                        contract:
+                          title: Ссылка на документ или внешний ресурс
+                          type: string
+                          minLength: 1
+                        return:
+                          anyOf:
+                            - type: 'null'
+                            - type: string
+                          title: Признак возврата управления
+                      required:
+                        - from
+                        - to
+                        - value
+                  results:
+                    title: Результаты взаимодействия
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      minLength: 5
+                required:
+                  - steps
+          required:
+            - title
+            - groups
+
+rules:
+  validators:
+    sequences:
+      title: Валидатор последовательностей
+      source: >
+        (
+          $validator := $jsonschema($.entities.sequences.schema.patternProperties.*); /* Передаем схему в части отдельного объекта, а не всех sequences */
+          ([([
+            $.sequences.$spread().( /* Сканируем все последовательности */
+              $ID := $keys()[0];
+              {
+                "id": $ID,											/* Запоминаем идентификатор компонента */
+                "isvalid": $validator($.*)							/* Валидируем компонент по схеме */									
+              }
+            )        
+          ][isvalid != true]).isvalid.{  /* Генерируем отклонения по выявленным нарушениям */
+            "uid": $.params.*[0] & "-sequence-" & %.id,				/* Уникальный идентификатор выявленной ошибки */
+            "location": "/entities/sequences/blank?id=" & %.id,		/* Ссылка на расположение объекта ошибки */
+            "correction": "Исправьте ошибку",						          
+            "description": $.message
+          }])
+        
+        )

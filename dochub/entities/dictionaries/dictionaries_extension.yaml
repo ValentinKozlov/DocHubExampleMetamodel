@@ -1,0 +1,26 @@
+entities:
+  dictionaries:
+    # Расширяем презентацию сущности
+    presentations:
+      critical_levels:
+        type: upload
+        title: Критичность системы
+        source: >
+          (
+            $.dictionaries."settings.critical_level".parameters.{
+              "guid": guid,
+              "title": title,
+              "description": description
+            };
+          )
+      system_statuses:
+        type: upload
+        title: Статус системы
+        source: >
+          (
+            $.dictionaries."settings.system_status".parameters.{
+              "guid": guid,
+              "title": title,
+              "description": description
+            };
+          )

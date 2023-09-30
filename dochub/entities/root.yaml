@@ -3,3 +3,4 @@ imports:
   - aspects/root.yaml
   - contexts/root.yaml
   - documents/root.yaml
+  - dictionaries/root.yaml

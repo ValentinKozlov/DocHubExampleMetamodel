@@ -3,11 +3,11 @@ entities:
   contexts:
     title: Контексты
     description: >
-      Представлять указанные архитектурные компоненты в виде диаграмм.
+      Представляет указанные архитектурные компоненты в виде диаграмм.
     schema:
       type: object
       patternProperties:
-        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
+        "^[0-9a-zA-Z][a-zA-Z0-9_-]*(\\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -20,12 +20,12 @@ entities:
               title: Иконка в меню
               type: string
             components:
-              title: Комппоненты контекста
+              title: Компоненты контекста
               type: array
               items:
                 type: string
                 title: Идентификатор компонента или маска
-                pattern: "^[a-zA-Z][a-zA-Z0-9\\_]*(\\.([a-zA-Z][a-zA-Z0-9\\_]*|\\*))*$"
+                pattern: "^[0-9a-zA-Z][a-zA-Z0-9\\_]*(\\.([0-9a-zA-Z][a-zA-Z0-9\\_]*|\\*))*$"
             extra-links:
               title: Отображать компоненты ближайших связей
               type: boolean
@@ -65,28 +65,26 @@ entities:
               anyOf:
                 - type: string
                   title: Идентификатор dataset
-                  pattern: "^[a-zA-Z][a-zA-Z0-9\_]*(\\.[a-zA-Z][a-zA-Z0-9\\_]*)*$"
+                  pattern: "^[0-9a-zA-Z][a-zA-Z0-9\_]*(\\.[0-9a-zA-Z][a-zA-Z0-9\\_]*)*$"
                 - type: string
                   title: JSONata запрос
                   pattern: "\\s*\\((.|\\s)*\\)\\s*"
           required:
             - title
-            - components
       additionalProperties: false
-    # Определяет пути к объектам сущности
-    routes:
-      context: "/:id" # Путь к контексту
     menu: >
       (
-        $presentation := entities.contexts.config.defaultPresentation;
-        contexts.$spread().(
-            /* Если указана явно презентация, используем ее */
-            $presentation := $.*.presentation ? *.presentation : $presentation;
-            *.location ? {
-                "location": "04. Прикладная архитектура/" & *.location,
-                "link": "entities/contexts/" & $presentation & "?dh-context-id=" & $keys()[0]
-            }
-        );
+          $presentation := entities.contexts.config.defaultPresentation;
+          [
+              contexts.$spread().(
+                  /* Если указана явно презентация, используем ее */
+                  $presentation := $.*.presentation ? *.presentation : $presentation;
+                  *.location ? {
+                      "location": "Прикладная архитектура/" & *.location,
+                      "link": "entities/contexts/" & $presentation & "?dh-context-id=" & $keys()[0]
+                  }
+              )
+          ]
       )
     # Предопределенные конфигурационные параметры для генерации контекстов
     config:
@@ -94,7 +92,7 @@ entities:
       defaultPresentation: plantuml # plantuml / smartants / c4_context
     # Общие API функции для генерирования контекста
     api:
-      # Возввращает компоненты входящие в контекст
+      # Возвращает компоненты входящие в контекст
       # Входящие параметры:
       #   manifest      - данные архитектуры
       #   contextId     - идентификатор контекста
@@ -109,17 +107,17 @@ entities:
           $isSelf := $params.componentId ? true : false;
           /* Получаем объект контекста */
           $context := $lookup($params.manifest.contexts, contextId);
-
+           
           /* Определяем необходимость показывать ближайшие связи */
           $isExtraLinks := $params.componentId ? true : $params."extra-links";
-
+        
           /* Определяем, какие компоненты покажем в контексте */
           $showComponents := $params.componentId
             /* Если контекст под определенный компонент, ограничиваемся им. */
             ? [$params.componentId]
             /* Если нет берем все компоненты указанные в контексте */
             : $context.components; 
-  
+          
           /* Если в контексте переопределена функция получения компонентов, используем ее*/
           $context.api.fetchComponents ? (
             $eval($context.api.fetchComponents, $params)
@@ -145,7 +143,7 @@ entities:
             ) : {}]);
           )
         )
-      # На основании списка компонентов генерирует массиа областей которые они затрагивают
+      # На основании списка компонентов генерирует массива областей которые они затрагивают
       # Входящие параметры:
       #   components - список компонентов в формате fetchComponents
       fetchAreas: >
