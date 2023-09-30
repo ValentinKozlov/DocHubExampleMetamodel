@@ -3,40 +3,63 @@ datasets:
   swamp.dataset.systems_list:
     source: >
       (
-        $REPO := $;
-        [$distinct([components.$spread().(
-          $COMPONENT_ID := $keys()[0];
-          $BASE_ID := $split($COMPONENT_ID, ".", 2) ~> $join('.');
+        $manifest := $;
+        $dictionaries := $manifest.dictionaries;
+        $functions := $manifest.functions;
+        $accounts := $dictionaries."accounts".parameters;
+        $technologies := $.technologies.items;
 
-          $systems := $.*.{
-            "id": $COMPONENT_ID,
-            "link_to_system": "/architect/components/" & $COMPONENT_ID,
-            "title": title,
-            "entity": entity,
-            "system_entities": "Ссылка",
-            "link_to_system_entities": "/entities/business_entities/business_entities_table_in_systems.filtered?system_id=" & $COMPONENT_ID,
-            "description": description,
-            "application_owner": application_owner,            
-            "owner_unit":  $BASE_ID ? $lookup($REPO.components, $BASE_ID).title : $BASE_ID
-          };
-          $systems[entity="system"];
-        )])^(id)]
-
+        [components.$spread().(
+          $component_id := $keys()[0];
+          $bu_id := $split($component_id, ".", 2) ~> $join('.');
+          $bu_block := $split($component_id, ".", 3) ~> $join('.');
+          $.*.(
+            {
+              "id": $component_id,
+              "link_to_system": "/architect/components/" & $component_id,
+              "title": title,
+              "entity": entity,
+              "critical_level": critical_level,
+              "system_status": system_status,
+              "short_description": short_description,
+              "description": description,
+              "system_entities": "Ссылка",
+              "link_to_system_entities": "/entities/business_entities/business_entities_table_in_systems.filtered?system_id=" & $component_id,
+              "deployment_card": "Ссылка",
+              "link_to_deployment_card": "/entities/environments/deployment_card?id=" & $component_id,
+              "application_owner": $eval($functions.get_account,{"username": application_owner, "accounts": $accounts}).title,
+              "business_owners": $.business_owners.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title]),
+              "architect": $eval($functions.get_account,{"username": architect, "accounts": $accounts}).title,
+              "budget_holder": $eval($functions.get_account,{"username": budget_holder, "accounts": $accounts}).title,
+              "budget_holders_bu": $lookup($manifest.components, $eval($functions.get_account,{"username": budget_holder, "accounts": $accounts}).bu).title,
+              "owner_unit":  $bu_id ? $lookup($manifest.components, $bu_id).title : $bu_id,
+              "bu_block":  $lookup($manifest.components, $bu_block).bu_block,
+              "prod_url": $distinct(urls[id = "prod"].url),
+              "technologies": $map(technologies, function($tech, $i, $a){
+                  $filter($technologies.$spread(), function($v, $i, $a) {
+                      $tech in $v.*.aliases
+                  }).(
+                      $keys()[0]
+                  )
+              })
+            }
+          )[entity="system"];
+        )]^(id)
       )
 
   # Получаем список бизнес-сущностей с линками на карточку бизнес-cущности
   swamp.dataset.business_entities_list:
     source: >
       (
-      [$.business_entities.$spread().(
-      $ENTITY_ID :=  $keys()[0];
-      $entities := $.*.{
-        "id": $ENTITY_ID,
-        "title":  title,
-        "description":  description,
-        "link_to_entity": "/entities/business_entities/business_entity_card?id=" & $ENTITY_ID
-        };
-      )]^(title)
+        [$.business_entities.$spread().(
+        $ENTITY_ID :=  $keys()[0];
+        $entities := $.*.{
+          "id": $ENTITY_ID,
+          "title":  title,
+          "description":  description,
+          "link_to_entity": "/entities/business_entities/business_entity_card?id=" & $ENTITY_ID
+          };
+        )]^(title)
       )
 
   # Cписок бизнес-сущностей в системах с линками на карточку бизнес-cущности
@@ -53,7 +76,7 @@ datasets:
               $ENTITIES := $merge([$ENTITIES, {"id": $ENTITY}]);
               $COMPONENT := $lookup($MANIFEST.components, $COMPONENT_ID);
               {
-              "id": $ENTITIES.id,                /* ID бизнес-сущности в DocHub */             
+              "id": $ENTITIES.id,                /* ID бизнес-сущности в DocHub */
               "title": $type($ENTITIES.title)="string" ? $ENTITIES.title : "Ошибка в идентификаторе бизнес-сущности",
               "link_to_entity": $type($ENTITIES.title)="string" ? "/entities/business_entities/business_entity_card?id=" & $ENTITIES.id : "",
               "system_id": $COMPONENT_ID,
@@ -66,3 +89,296 @@ datasets:
           );
           )])^(system_id)
         )
+
+  swamp.dataset.arch_versions:
+    source: >
+      (
+        /* Задаём общие переменные */
+        $MANIFEST := $;
+        $DICTIONARIES:= $MANIFEST.dictionaries;
+        $FUNCTIONS := $MANIFEST.functions;
+        $ACTIVE_STATUSES := $DICTIONARIES."settings.system_status".parameters[is_system_active].name;
+        $COMPONENTS := $MANIFEST.components.$sift(function($v) { $v.entity="system" });
+
+        /* Получаем доп параметры для версии архитектуры as-is */
+        $ARCH_VERSIONS := $MANIFEST.arch_versions;
+        $ARCH_VERSION_ASIS := $lookup($ARCH_VERSIONS, "arch_version_asis"){
+          "id": "arch_version_asis",
+          "title": title,
+          "owner": owner
+        };
+
+        /* Идея:
+          На выходе хотим получить списки по версиям архитектур: as-is, to-be + as-is
+          Т.е. нужно собрать все системы as-is, далее собрать все системы to-be для каждой версии архитектуры,
+          а далее к каждой версии to-be + as-is.
+        Нюансы алгоритма:
+            Сначала собираем просто все сиcтемы для каждой версии сгруппированные по id. Группировка нужна чтобы корректно
+            мерджить данные. Мердж нужен чтобы получить целостную систему, в случае если в архитектуре to-be были
+            внесены только изменения. Смерджить сразу иерархический список не получилось, поэтому пришлось сначала собирать
+            все системы, мерджить их по id, а только потом группировать.
+        */
+
+        /* На выходе получаем все системы as-is*/
+        /* Формируем список систем as-is сгруппированные по id */
+
+        $SYSTEMS_ASIS := $COMPONENTS.$sift(function($v) { $v.system_status in $ACTIVE_STATUSES }).$spread().(
+          $component_id := $keys()[0];
+          $budget_holder_account := $eval($FUNCTIONS.get_account, { "username": $.*.budget_holder, "accounts": $DICTIONARIES."accounts".parameters });
+          $unit_id := ($.*.unit_id) ? $.*.unit_id : $budget_holder_account.bu;
+          $component := $merge([$.*, { "id": $component_id, "unit_id": $unit_id, "budget_holder":  $budget_holder_account }]);
+          $component_indicators := $eval($FUNCTIONS.get_system_indicators, {"system": $component, "dictionaries": $DICTIONARIES});
+          $component := $merge(
+            [
+              $component,
+              {
+                "rating": $eval($FUNCTIONS.get_indicators_total_rating, { "indicators": $component_indicators, "dictionaries": $DICTIONARIES }),
+                "component_indicators": $component_indicators
+              }
+            ]
+          );
+        ){
+          `id`: {
+            "id": id,
+            "unit_id": unit_id,
+            "title": title,
+            "short_description": short_description,
+            "business_owners": business_owners,
+            "budget_holder": budget_holder,
+            "system_category": $filter($DICTIONARIES."settings.system_category".parameters, function ($v) { $v.name=system_category }),
+            "application_owner": application_owner,
+            "critical_level": $filter($DICTIONARIES."settings.critical_level".parameters, function ($v) { $v.name=critical_level }),
+            "system_status": system_status,
+            "arch_version": "arch_version_asis",
+            "link_to_system": "/architect/components/" & id,
+            "indicators": component_indicators,
+            "rating": rating
+          }
+        };
+
+        $SYSTEMS_TOBE_VERSION := $MANIFEST.arch_versions.$sift(function($v, $k) {$k ~> /[^arch_version_asis]/}).$spread().(
+          $ARCH_VERSION := $;
+          $ARCH_VERSION_ID := $keys()[0];
+          $ARCH_VERSION_TOBE := $ARCH_VERSION.*{
+            "id": $ARCH_VERSION_ID,
+            "title": title,
+            "owner": owner
+          };
+
+          /* Для каждой версии архитектуры to-be выбираем измененные системы */
+          /* Формируем список систем to-be сгруппированные по id  */
+          $SYSTEMS_TOBE := $ARCH_VERSION.*.сhanged_data.$spread().(
+            $component_id := $keys()[0];
+            $budget_holder_account := $eval($FUNCTIONS.get_account, { "username": $.*.budget_holder, "accounts": $DICTIONARIES."accounts".parameters });
+            $unit_id := ($.*.unit_id) ? $.*.unit_id : $budget_holder_account.bu;
+            $component:= $lookup($COMPONENTS, $component_id);
+            $merge([$merge([$component, $.*]), {"id": $component_id, "unit_id": $unit_id, "budget_holder":  $budget_holder_account, "rating": $eval($FUNCTIONS.get_indicators_total_rating, { "indicators": $component.indicators, "dictionaries": $DICTIONARIES })}]);
+          ){
+            `id`: {
+                "id": id,
+                "unit_id": unit_id,
+                "title": title,
+                "short_description": short_description,
+                "business_owners": business_owners,
+                "budget_holder": budget_holder,
+                "system_category": $filter($DICTIONARIES."settings.system_category".parameters, function ($v) {$v.name=system_category}),
+                "application_owner": application_owner,
+                "critical_level": $filter($DICTIONARIES."settings.critical_level".parameters, function ($v) {$v.name=critical_level}),
+                "system_status": system_status,
+                "display_option": display_option,
+                "resolution": resolution,
+                "arch_version": $ARCH_VERSION_ID,
+                "link_to_system": "/architect/components/" & id,
+                "indicators": indicators,
+                "rating": rating
+              }
+            };
+
+          $SYSTEMS_TOBE := $merge([$SYSTEMS_ASIS, $SYSTEMS_TOBE]);
+
+          /* Группируем полученный массив to-be в нужную иерархию. Основная группировка делается по версии архитектуры */
+          {
+            "meta": $ARCH_VERSION_TOBE,
+            "systems": $SYSTEMS_TOBE
+          };
+        );
+
+        /* Группируем полученный массив as-is в нужную иерархию. Основная группировка делается по версии архитектуры */
+        $SYSTEMS_ASIS_VERSION := {
+          "meta": $ARCH_VERSION_ASIS,
+          "systems": $SYSTEMS_ASIS
+        };
+
+        /* Соединяем все в один массив данных */
+        $append($SYSTEMS_ASIS_VERSION,  $SYSTEMS_TOBE_VERSION);
+      )
+
+  # сделал копию в api, если именно тут не нужно - можно удалить
+  swamp.dataset.accounts:
+    source: >
+      (
+        $_manifest := $;
+        /* Делаем регулярку на выбор только латинских букв */
+        $matcher := /^[a-z]/;
+        /* Создаем массив со списком имен полей из которых будем выбирать логины */
+        $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+        /* Выбираем системы */
+        $system_accounts := $distinct($_manifest.components.*.(
+            $component := $; /* Получаем конкретную систему*/
+            $scan_fields.(
+                $lookup($component, $); /* Внутри конкретной системы берем значение конкретного реквизиты для каждого поля указанного в $scan_fields*/
+            )[$matcher($)]; /*Каждое полученное значение свяряем с регуляркой и лишнее игнорируем*/
+        ))[$];/*В предыдущей выборке будут nill-ы, для того чтобы избавиться от них делаем фильтр*/
+
+        /* Повторяем предыдущий алгоритм для версий архитектуры */
+        $arch_versions_accounts := $distinct($_manifest.arch_versions.*.сhanged_data.*.(
+            $component := $;
+            $scan_fields.(
+                $lookup($component, $);
+            )[$matcher($)];
+        ))[$];
+
+        /*Соединяем два полученных выше массива*/
+        $all_accounts := $distinct($append($system_accounts, $arch_versions_accounts ));
+      )
+
+  swamp.dataset.add_info_to_system_context: # Добавляем владельца продукта вместо аспектов
+    source: >
+      (
+        $ ~> | $ | {
+          "components": $merge(components.$spread().(
+          {
+            $keys()[0]: $merge([$.*, {
+              "aspects": [$trim(
+              ($type($.*.application_owner)="string" ?  $.*.application_owner : "Не указан владелец"))]
+            }])
+          }
+        ))
+        } |
+      )
+
+
+  swamp.dataset.repositories:
+    source: >
+      (
+        $systems := $merge($.components.$spread().(
+          $_id := $keys()[0];
+          $.*[repositories].(
+            $title := title;
+            repositories.({
+              $: {"id": $_id, "title": $title}
+            })
+          );
+        ));
+
+        repositories.$spread().(
+          $_id := $keys()[0];
+          $repositories := $.*.(
+            $system := $lookup($systems, $_id);
+            $ ~> | $ | {"id": $_id, "system_title": $system.title, "link_to_system": $system.id ? "/architect/components/" & $system.id} |;
+          );
+        )
+      )
+
+  swamp.dataset.topics:
+    source: ()
+    # (
+    #   $systems := $merge($.components.$spread().(
+    #     $_id := $keys()[0];
+    #     $.*[repositories].(
+    #       $title := title;
+    #       kafka.users.({
+    #         $: {"id": $_id, "title": $title}
+    #       })
+    #     );
+    #   ));
+
+    #   $distinct(
+    #     kafka_permissions.$spread().(
+    #       $USER := $keys();
+    #       $system := $lookup($systems, $USER);
+    #       $.*.$spread().(
+    #         $OPERATION := $keys()[0];
+    #         $.*.(
+    #           $TOPIC := $;
+    #           {"user": $USER, "operation": $OPERATION, "topic": $TOPIC, "system_title": $system.title, "link_to_system": $system.id ? "/architect/components/" & $system.id};
+    #         )
+    #       )
+    #     )
+    #   )
+    # )
+
+  swamp.dataset.technologies_list:
+    source: >
+      (
+        $ALL := $distinct($.components.*.technologies);
+
+        $GOOD := $.technologies.items.*.aliases;
+
+        $BAD_RESULT := $ALL[$not($ in $GOOD)].(
+            {"title": $, "link": "", "section": "", "status": "Не определён", "aliases": ""}
+        );
+
+        $GOOD_RESULT := $.technologies.(
+          $SECTIONS := $.sections;
+          $.items.$spread().(
+            $_id := $keys()[0];
+            $.*.(
+              {"title": $_id, "link": $.link, "section": $lookup($SECTIONS, $.section).title, "status": $.status, "aliases": $join($.aliases, ", ")}
+            )
+          );
+        );
+        $append($GOOD_RESULT, $BAD_RESULT);
+
+      )
+
+  swamp.dataset.libraries_table_list:
+    source: >
+      (
+        $manifest := $;
+        $dictionaries := $manifest.dictionaries;
+        $functions := $manifest.functions;
+        $accounts := $dictionaries."accounts".parameters;
+        $manifest.libraries.$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(
+          {
+            "library_id": library_id,
+            "link_to_library_entity": "/entities/libraries/library_card?library_id=" & library_id,
+            "title": title,
+            "description": description,
+            "library_type": library_type,
+            "control_type": control_type,
+            "mentor": $eval($functions.get_account,{"username": mentor, "accounts": $accounts}).title,
+            "maintainers": $.maintainers.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title])
+          }
+        );
+      )
+
+
+  swamp.dataset.libraries_table_in_systems:
+    source: >
+      (
+        $manifest := $;
+        $manifest.components.$spread().(
+          $system_id := $keys()[0];
+          $system := $;
+          $system_title := $.*.title;
+          $distinct($system.*.libraries.(
+            $library_id := $string($);
+            $library := $lookup($manifest.libraries, $library_id);
+            $type($library.title)="string"
+            ? (
+              $libraries := $merge([$library, {"id": $library_id}]);
+              {
+                "library_id": $library_id,                /* ID бизнес-сущности в DocHub */
+                "title": $library.title,
+                "link_to_library": "/entities/libraries/library_card?library_id=" & $library_id,
+                "system_id": $system_id,
+                "link_to_system": "/architect/components/" & $system_id,
+                "system_title": $system_title,
+                "system_libraries": "Отбор по системе",
+                "link_to_system_libraries": "/entities/libraries/libraries_table_in_systems.filtered?system_id=" & $system_id
+              }
+              )
+          ));
+        )^(system_id)
+      )

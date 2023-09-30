@@ -55,11 +55,12 @@ entities: # Сущности расширенной метамодели
                         $set("isdiff", $get("isdiff") or $prev_level = 0 or $prev_level <= $i or $v != $prev_nodes[$i]) ? (
                             $id := $join($arrleft($curr_nodes, $i), ".");
                             $dictionary :=  $lookup($dictionaries, $id);
+                            $presentation := ($dictionary.presentation) ? $dictionary.presentation : "dictionary_card";
                             {
                                 "id": $id,
                                 "level": $pad("", $i + 2, "*"),
                                 "title": $dictionary ? $dictionary.title : $id,
-                                "link": "/entities/dictionaries/dictionary_card?id=" & $id
+                                "link": "/entities/dictionaries/" & $presentation & "?id=" & $id
                             }
                         );
                     )});
@@ -76,4 +77,13 @@ entities: # Сущности расширенной метамодели
                 $dictionaries := [$.dictionaries.$spread().$merge([$.*, {"id": $keys($)}])];
                 $dictionaries [id=$params.id];
             )
+      dictionary_card_brief:
+        type: markdown
+        template: templates/dictionary_card_brief.md
+        source: >
+            (
+                $dictionaries := [$.dictionaries.$spread().$merge([$.*, {"id": $keys($)}])];
+                $dictionaries [id=$params.id];
+            )
+    
 

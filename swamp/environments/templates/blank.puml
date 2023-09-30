@@ -1,0 +1,18 @@
+@startuml
+{{#.}}
+title {{title}}
+{{#triggers}}
+group {{#triggers}}{{.}}, {{/triggers}}
+{{/triggers}}
+    {{#steps}}
+    "{{from}}" --> "{{to}}": {{value}}
+    {{/steps}}
+    {{#results}}
+    note across: {{#results}}{{.}}, {{/results}}
+    {{/results}}
+{{#triggers}}
+end
+{{/triggers}}
+
+{{/.}}
+@enduml
