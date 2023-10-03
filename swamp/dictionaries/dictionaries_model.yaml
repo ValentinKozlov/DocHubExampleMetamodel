@@ -20,9 +20,9 @@ entities: # Сущности расширенной метамодели
             )};
 
             $append([{
-                "icon": *.icon,                                                 /* Получаем иконку */
-                "link": "entities/dictionaries/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
-                "location": "Справочники"                                    /* Расположение в меню */
+                "icon": *.icon,
+                "link": "entities/dictionaries/tree",
+                "location": "Справочники"
             }],
                 [$.dictionaries.$spread().{
                     "icon": *.icon,                                             /* Получаем иконку */

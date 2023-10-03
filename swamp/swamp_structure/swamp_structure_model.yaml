@@ -8,8 +8,7 @@ entities:
         [
           {
             "location": "Документация/Управленческая структура ГК Самолёт",
-            "link": "entities/swamp_structure/structure_tree",
-            "order": 3111
+            "link": "entities/swamp_structure/structure_tree"            
           }
         ]
       )
