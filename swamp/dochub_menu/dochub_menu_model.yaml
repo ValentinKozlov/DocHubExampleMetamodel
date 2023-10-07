@@ -22,7 +22,7 @@ entities:
 
         $append([{
             "icon": *.icon,
-            "location": "Развитие корп архитектуры/Инструменты/DocHub/Целевая структура меню DocHub",
+            "location": "Развитие корп архитектуры/Инструменты/DocHub/Структура меню DocHub",
             "link": "entities/dochub_menu/menu_tree"
           }],
           [
