@@ -139,20 +139,31 @@ entities: # Сущности расширенной метамодели
               $[system_id=$params.system_id]
           )
 
-      # http://localhost:3030/entities/business_entities/presentations/get_business_entities
-      get_business_entities:
-          type: upload
-          title: Выгрузка бизнес-сущностей в JSON
-          # template: templates/temporary.json
-          # params:           # JSONSchema контроля параметров
-          #   type: object
-          #   properties:
-          #     gitlab_id:
-          #       type: string
-          #   required:
-          #     - gitlab_id        
-          origin: swamp.dataset.business_entities_in_systems       # Базовый источник данных
-          source: >
-            (
-                $[system_id="swamp.crocodile.crm"]
-            )
+      # Наследуемся от таблицы business_entities.in_systems и делаем фильтр по конкретной бизнес-сущности
+      # Цель вывести все системы в которых используется заданная бизнес-сущность
+      systems_business_entity_used.filtered: # Дочерняя таблица
+        type: table
+        title: Все системы конкретной бизнес-сущности
+        params:
+          type: object
+          properties:
+            id:
+              type: string
+          required:
+            - id
+        headers:
+          - value: system_title
+            text: Система
+            sortable: true
+            align: left
+            link: link_to_system
+
+          - value: system_id
+            text: ID системы в DocHub
+            sortable: true
+            align: left
+        origin: swamp.dataset.business_entities_in_systems # Базовый источник данных
+        source: >
+          (
+              [$[id=$params.id]]
+          )

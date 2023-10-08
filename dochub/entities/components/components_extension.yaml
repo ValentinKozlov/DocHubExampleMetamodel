@@ -25,14 +25,6 @@ entities:
             style:
               border: false
               margin: 4px
-          sys_health_indicators:
-            # title: Индикаторы здоровья
-            presentation: sys_health_indicators
-            align: ">"
-            order: 1000
-            style:
-              border: false
-              margin: 4px
           sys_technologies:
             title: Технологии
             presentation: sys_technologies
@@ -282,47 +274,6 @@ entities:
               $lookup($ALL_TECH, $SYSTEM_TECHONOGY) ? $lookup($ALL_TECH, $SYSTEM_TECHONOGY) : {"title": $SYSTEM_TECHONOGY, "link": "", "section": "", "status": "Не определён", "aliaces": ""}
             );
 
-          )
-
-      sys_health_indicators: # Идентификатор представления
-        # Контракт по параметрам представления в формате JSONSchema
-        params:
-          type: object
-          properties:
-            component:
-              title: Идентификатор компонента
-              type: string
-          required:
-            - component
-        # Тип документа шаблона
-        type: rating
-        source: >
-          (
-            $system_id := $params.component;
-            /*$system_id := "swamp.bu_csp.sid";*/
-            $INDICATORS := $.dictionaries."system_health.indicators".parameters;
-            $FITNESS := $.dictionaries."system_health.fitness".parameters;
-            $RATINGS := $.dictionaries."system_health.ratings".parameters;
-
-            $system := $lookup($.components, $system_id);
-            $system_indicators := $eval($.functions.get_system_indicators, {'system': $system, 'dictionaries': $.dictionaries});
-
-            ($system_indicators) ? (
-              $rate := $eval($.functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $.dictionaries});
-              {
-                  'rating': $rate,
-                  'indicators': $system_indicators.(
-                    $indicator_id := $.id;
-                    $indicator_fit := $.fit;
-                    {
-                        'title': $INDICATORS[name=$indicator_id].title,
-                        'description': $INDICATORS[name=$indicator_id].description,
-                        'fit': $FITNESS[name=$indicator_fit].title,
-                        'comment': comment
-                    }
-                  )
-              }
-            );
           )
 
       sys_problems:

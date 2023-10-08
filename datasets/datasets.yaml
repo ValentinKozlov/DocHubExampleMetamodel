@@ -90,128 +90,7 @@ datasets:
           )])^(system_id)
         )
 
-  swamp.dataset.arch_versions:
-    source: >
-      (
-        /* Задаём общие переменные */
-        $MANIFEST := $;
-        $DICTIONARIES:= $MANIFEST.dictionaries;
-        $FUNCTIONS := $MANIFEST.functions;
-        $ACTIVE_STATUSES := $DICTIONARIES."settings.system_status".parameters[is_system_active].name;
-        $COMPONENTS := $MANIFEST.components.$sift(function($v) { $v.entity="system" });
 
-        /* Получаем доп параметры для версии архитектуры as-is */
-        $ARCH_VERSIONS := $MANIFEST.arch_versions;
-        $ARCH_VERSION_ASIS := $lookup($ARCH_VERSIONS, "arch_version_asis"){
-          "id": "arch_version_asis",
-          "title": title,
-          "owner": owner
-        };
-
-        /* Идея:
-          На выходе хотим получить списки по версиям архитектур: as-is, to-be + as-is
-          Т.е. нужно собрать все системы as-is, далее собрать все системы to-be для каждой версии архитектуры,
-          а далее к каждой версии to-be + as-is.
-        Нюансы алгоритма:
-            Сначала собираем просто все сиcтемы для каждой версии сгруппированные по id. Группировка нужна чтобы корректно
-            мерджить данные. Мердж нужен чтобы получить целостную систему, в случае если в архитектуре to-be были
-            внесены только изменения. Смерджить сразу иерархический список не получилось, поэтому пришлось сначала собирать
-            все системы, мерджить их по id, а только потом группировать.
-        */
-
-        /* На выходе получаем все системы as-is*/
-        /* Формируем список систем as-is сгруппированные по id */
-
-        $SYSTEMS_ASIS := $COMPONENTS.$sift(function($v) { $v.system_status in $ACTIVE_STATUSES }).$spread().(
-          $component_id := $keys()[0];
-          $budget_holder_account := $eval($FUNCTIONS.get_account, { "username": $.*.budget_holder, "accounts": $DICTIONARIES."accounts".parameters });
-          $unit_id := ($.*.unit_id) ? $.*.unit_id : $budget_holder_account.bu;
-          $component := $merge([$.*, { "id": $component_id, "unit_id": $unit_id, "budget_holder":  $budget_holder_account }]);
-          $component_indicators := $eval($FUNCTIONS.get_system_indicators, {"system": $component, "dictionaries": $DICTIONARIES});
-          $component := $merge(
-            [
-              $component,
-              {
-                "rating": $eval($FUNCTIONS.get_indicators_total_rating, { "indicators": $component_indicators, "dictionaries": $DICTIONARIES }),
-                "component_indicators": $component_indicators
-              }
-            ]
-          );
-        ){
-          `id`: {
-            "id": id,
-            "unit_id": unit_id,
-            "title": title,
-            "short_description": short_description,
-            "business_owners": business_owners,
-            "budget_holder": budget_holder,
-            "system_category": $filter($DICTIONARIES."settings.system_category".parameters, function ($v) { $v.name=system_category }),
-            "application_owner": application_owner,
-            "critical_level": $filter($DICTIONARIES."settings.critical_level".parameters, function ($v) { $v.name=critical_level }),
-            "system_status": system_status,
-            "arch_version": "arch_version_asis",
-            "link_to_system": "/architect/components/" & id,
-            "indicators": component_indicators,
-            "rating": rating
-          }
-        };
-
-        $SYSTEMS_TOBE_VERSION := $MANIFEST.arch_versions.$sift(function($v, $k) {$k ~> /[^arch_version_asis]/}).$spread().(
-          $ARCH_VERSION := $;
-          $ARCH_VERSION_ID := $keys()[0];
-          $ARCH_VERSION_TOBE := $ARCH_VERSION.*{
-            "id": $ARCH_VERSION_ID,
-            "title": title,
-            "owner": owner
-          };
-
-          /* Для каждой версии архитектуры to-be выбираем измененные системы */
-          /* Формируем список систем to-be сгруппированные по id  */
-          $SYSTEMS_TOBE := $ARCH_VERSION.*.сhanged_data.$spread().(
-            $component_id := $keys()[0];
-            $budget_holder_account := $eval($FUNCTIONS.get_account, { "username": $.*.budget_holder, "accounts": $DICTIONARIES."accounts".parameters });
-            $unit_id := ($.*.unit_id) ? $.*.unit_id : $budget_holder_account.bu;
-            $component:= $lookup($COMPONENTS, $component_id);
-            $merge([$merge([$component, $.*]), {"id": $component_id, "unit_id": $unit_id, "budget_holder":  $budget_holder_account, "rating": $eval($FUNCTIONS.get_indicators_total_rating, { "indicators": $component.indicators, "dictionaries": $DICTIONARIES })}]);
-          ){
-            `id`: {
-                "id": id,
-                "unit_id": unit_id,
-                "title": title,
-                "short_description": short_description,
-                "business_owners": business_owners,
-                "budget_holder": budget_holder,
-                "system_category": $filter($DICTIONARIES."settings.system_category".parameters, function ($v) {$v.name=system_category}),
-                "application_owner": application_owner,
-                "critical_level": $filter($DICTIONARIES."settings.critical_level".parameters, function ($v) {$v.name=critical_level}),
-                "system_status": system_status,
-                "display_option": display_option,
-                "resolution": resolution,
-                "arch_version": $ARCH_VERSION_ID,
-                "link_to_system": "/architect/components/" & id,
-                "indicators": indicators,
-                "rating": rating
-              }
-            };
-
-          $SYSTEMS_TOBE := $merge([$SYSTEMS_ASIS, $SYSTEMS_TOBE]);
-
-          /* Группируем полученный массив to-be в нужную иерархию. Основная группировка делается по версии архитектуры */
-          {
-            "meta": $ARCH_VERSION_TOBE,
-            "systems": $SYSTEMS_TOBE
-          };
-        );
-
-        /* Группируем полученный массив as-is в нужную иерархию. Основная группировка делается по версии архитектуры */
-        $SYSTEMS_ASIS_VERSION := {
-          "meta": $ARCH_VERSION_ASIS,
-          "systems": $SYSTEMS_ASIS
-        };
-
-        /* Соединяем все в один массив данных */
-        $append($SYSTEMS_ASIS_VERSION,  $SYSTEMS_TOBE_VERSION);
-      )
 
   # сделал копию в api, если именно тут не нужно - можно удалить
   swamp.dataset.accounts:
@@ -242,22 +121,6 @@ datasets:
         $all_accounts := $distinct($append($system_accounts, $arch_versions_accounts ));
       )
 
-  swamp.dataset.add_info_to_system_context: # Добавляем владельца продукта вместо аспектов
-    source: >
-      (
-        $ ~> | $ | {
-          "components": $merge(components.$spread().(
-          {
-            $keys()[0]: $merge([$.*, {
-              "aspects": [$trim(
-              ($type($.*.application_owner)="string" ?  $.*.application_owner : "Не указан владелец"))]
-            }])
-          }
-        ))
-        } |
-      )
-
-
   swamp.dataset.repositories:
     source: >
       (
@@ -280,34 +143,6 @@ datasets:
         )
       )
 
-  swamp.dataset.topics:
-    source: ()
-    # (
-    #   $systems := $merge($.components.$spread().(
-    #     $_id := $keys()[0];
-    #     $.*[repositories].(
-    #       $title := title;
-    #       kafka.users.({
-    #         $: {"id": $_id, "title": $title}
-    #       })
-    #     );
-    #   ));
-
-    #   $distinct(
-    #     kafka_permissions.$spread().(
-    #       $USER := $keys();
-    #       $system := $lookup($systems, $USER);
-    #       $.*.$spread().(
-    #         $OPERATION := $keys()[0];
-    #         $.*.(
-    #           $TOPIC := $;
-    #           {"user": $USER, "operation": $OPERATION, "topic": $TOPIC, "system_title": $system.title, "link_to_system": $system.id ? "/architect/components/" & $system.id};
-    #         )
-    #       )
-    #     )
-    #   )
-    # )
-
   swamp.dataset.technologies_list:
     source: >
       (
@@ -329,7 +164,6 @@ datasets:
           );
         );
         $append($GOOD_RESULT, $BAD_RESULT);
-
       )
 
   swamp.dataset.libraries_table_list:
@@ -352,7 +186,6 @@ datasets:
           }
         );
       )
-
 
   swamp.dataset.libraries_table_in_systems:
     source: >
