@@ -16,7 +16,7 @@ entities:
                 })
             };
             $domains := $split($id, ".");
-            "Технологическая архитектура/Среды ГК Болото/" & $join($map($domains, function($domain, $index) {(
+            "Технологическая архитектура/Среды развертывания ГК Болото/" & $join($map($domains, function($domain, $index) {(
                 $lookup($environments, $join($arrleft($domains, $index), ".")).title
             )}), "/");
         )};
@@ -24,7 +24,7 @@ entities:
         $menu := $append([{
               "icon": *.icon,                                                 /* Получаем иконку */
               "link": "entities/environments/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
-              "location": "Технологическая архитектура/Среды ГК Болото"                                    /* Расположение в меню */
+              "location": "Технологическая архитектура/Среды развертывания ГК Болото"                                    /* Расположение в меню */
           }],
               [$.environments.$spread().{
                   "icon": *.icon,                                             /* Получаем иконку */
@@ -685,17 +685,6 @@ entities:
             };
           )
 
-
-      aerodrome:
-        type: resource_request
-        title: Заявки на заведение ресурсов
-        params:
-          type: object
-          properties:
-            system_id:
-              type: string
-          required:
-            - system_id
 
 
 # Описываем основные группы сред

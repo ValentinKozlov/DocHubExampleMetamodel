@@ -4,8 +4,7 @@ imports:
   - dochub_menu/root.yaml
   - environments/root.yaml
   - libraries/root.yaml  
-  - sequence_diagrams/root.yaml
-  - swamp_structure/root.yaml
+  - sequence_diagrams/root.yaml  
   
   
 

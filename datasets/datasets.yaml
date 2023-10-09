@@ -191,7 +191,7 @@ datasets:
     source: >
       (
         $manifest := $;
-        $manifest.components.$spread().(
+        [$manifest.components.$spread().(
           $system_id := $keys()[0];
           $system := $;
           $system_title := $.*.title;
@@ -213,5 +213,5 @@ datasets:
               }
               )
           ));
-        )^(system_id)
+        )]^(system_id)
       )
