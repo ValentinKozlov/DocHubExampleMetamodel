@@ -173,7 +173,7 @@ datasets:
         $dictionaries := $manifest.dictionaries;
         $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
-        $manifest.libraries.$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(
+        $distinct([$manifest.libraries.$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(
           {
             "library_id": library_id,
             "link_to_library_entity": "/entities/libraries/library_card?library_id=" & library_id,
@@ -184,14 +184,14 @@ datasets:
             "mentor": $eval($functions.get_account,{"username": mentor, "accounts": $accounts}).title,
             "maintainers": $.maintainers.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title])
           }
-        );
+        )]);
       )
 
   swamp.dataset.libraries_table_in_systems:
     source: >
       (
         $manifest := $;
-        [$manifest.components.$spread().(
+        $distinct([$manifest.components.$spread().(
           $system_id := $keys()[0];
           $system := $;
           $system_title := $.*.title;
@@ -213,5 +213,5 @@ datasets:
               }
               )
           ));
-        )]^(system_id)
+        )])^(system_id)
       )

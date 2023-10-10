@@ -84,6 +84,26 @@ entities: # Сущности расширенной метамодели
             (
                 $dictionaries := [$.dictionaries.$spread().$merge([$.*, {"id": $keys($)}])];
                 $dictionaries [id=$params.id];
-            )
-    
-
+            )            
+      critical_levels:
+        type: upload
+        title: Критичность системы
+        source: >
+          (
+            $.dictionaries."settings.critical_level".parameters.{
+              "guid": guid,
+              "title": title,
+              "description": description
+            };
+          )
+      system_statuses:
+        type: upload
+        title: Статус системы
+        source: >
+          (
+            $.dictionaries."settings.system_status".parameters.{
+              "guid": guid,
+              "title": title,
+              "description": description
+            };
+          )

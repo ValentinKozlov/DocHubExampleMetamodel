@@ -141,12 +141,12 @@ entities:
         origin: swamp.dataset.libraries_table_in_systems # Базовый источник данных
         source: >
           (
-              $[system_id=$params.system_id]
+              [$[system_id=$params.system_id]]
           )
 
       systems_library_used.filtered: # Дочерняя таблица
         type: table
-        title: Все системы конкретной бизнес-сущности
+        title: Все системы конкретной библиотеки
         params:
           type: object
           properties:
