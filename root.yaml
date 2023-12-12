@@ -8,3 +8,7 @@ swamphub:
   metamodel:
     version: <VERSION>
 
+docs:
+  dochub.devtool:
+    location: DevTool
+    type: devtool
