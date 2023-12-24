@@ -8,8 +8,9 @@ datasets:
         $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
         $technologies := $.technologies.items;
+        $components := $manifest.components.$sift(function($v) { $v.entity="system" });
 
-        [components.$spread().(
+        [$components.$spread().(
           $component_id := $keys()[0];
           $bu_id := $split($component_id, ".", 2) ~> $join('.');
           $bu_block := $split($component_id, ".", 3) ~> $join('.');
@@ -27,11 +28,11 @@ datasets:
               "link_to_system_entities": "/entities/business_entities/business_entities_table_in_systems.filtered?system_id=" & $component_id,
               "deployment_card": "Ссылка",
               "link_to_deployment_card": "/entities/environments/deployment_card?id=" & $component_id,
-              "application_owner": $eval($functions.get_account,{"username": application_owner, "accounts": $accounts}).title,
-              "business_owners": $.business_owners.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title]),
-              "architect": $eval($functions.get_account,{"username": architect, "accounts": $accounts}).title,
-              "budget_holder": $eval($functions.get_account,{"username": budget_holder, "accounts": $accounts}).title,
-              "budget_holders_bu": $lookup($manifest.components, $eval($functions.get_account,{"username": budget_holder, "accounts": $accounts}).bu).title,
+              "application_owner": $get_account_new(application_owner,$accounts).title,              
+              "business_owners": $.business_owners.([$get_account_new($,$accounts).title]),              
+              "architect": $get_account_new(architect,$accounts).title,              
+              "budget_holder": $get_account_new(budget_holder,$accounts).title,
+              "budget_holders_bu": $lookup($manifest.components, $get_account_new(budget_holder,$accounts).bu).title,
               "owner_unit":  $bu_id ? $lookup($manifest.components, $bu_id).title : $bu_id,
               "bu_block":  $lookup($manifest.components, $bu_block).bu_block,
               "prod_url": $distinct(urls[id = "prod"].url),
@@ -43,10 +44,9 @@ datasets:
                   )
               })
             }
-          )[entity="system"];
+          );
         )]^(id)
       )
-
   # Получаем список бизнес-сущностей с линками на карточку бизнес-cущности
   swamp.dataset.business_entities_list:
     source: >
