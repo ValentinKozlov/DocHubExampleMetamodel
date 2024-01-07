@@ -1,0 +1,700 @@
+
+entities:
+  # Типы кластеров
+  environments:
+    title: Типы сред развертывания систем
+    description:
+      > # Описание сущности текст или ссылка на документ. Необязательно.
+      Типы сред развертывания систем ГК Болото
+    menu: >
+      (
+        $environments := $.environments;
+        $makeLocation := function($id) {(
+            $arrleft := function($arr ,$count) {
+                $map($arr, function($v, $i) {
+                $i <= $count ? $v
+                })
+            };
+            $domains := $split($id, ".");
+            "Технологическая архитектура/Среды развертывания ГК Болото/" & $join($map($domains, function($domain, $index) {(
+                $lookup($environments, $join($arrleft($domains, $index), ".")).title
+            )}), "/");
+        )};
+
+        $menu := $append([{
+              "icon": *.icon,                                                 /* Получаем иконку */
+              "link": "entities/environments/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
+              "location": "Технологическая архитектура/Среды развертывания ГК Болото"                                    /* Расположение в меню */
+          }],
+              [$.environments.$spread().{
+                  "icon": *.icon,                                             /* Получаем иконку */
+                  "link": "entities/environments/environment_deployment_diagram?environment_id="& $keys()[0],     /* Формируем ссылку на бланк документ */
+                  "location": $makeLocation($keys()[0])                       /* Формируем расположение в меню */
+              }][location]
+          );
+      )
+
+    presentations:
+      tree:
+        type: plantuml
+        title: Дерево сред
+        template: templates/tree.puml
+        source: >
+          (
+              $set("rpev-id", undefined);
+              $arrleft := function($arr ,$count) {
+                  $map($arr, function($v, $i) {
+                      $i <= $count ? $v
+                  })
+              };
+              $environments := $.environments;
+              [$environments.$spread().($merge([{"id" : $keys()[0]}, $.*]))^(id).(
+                  $prev_nodes := $split($get("rpev-id"), ".");
+                  $prev_level := $count($prev_nodes);
+                  $curr_nodes := $split(id, ".");
+                  $set("isdiff", false);
+                  $result := $map($curr_nodes, function($v, $i) {(
+                      $set("isdiff", $get("isdiff") or $prev_level = 0 or $prev_level <= $i or $v != $prev_nodes[$i]) ? (
+                          $id := $join($arrleft($curr_nodes, $i), ".");
+                          $cluster :=  $lookup($environments, $id);
+                          {
+                              "id": $id,
+                              "level": $pad("", $i + 2, "*"),
+                              "title": $cluster ? $cluster.title : $id,
+                              "link": "/entities/environments/environment_deployment_diagram?environment_id=" & $id
+                          }
+                      );
+                  )});
+                  $set("rpev-id", id);
+                  $result
+              )];
+          )
+
+      environment_deployment_diagram:
+        type: mermaid
+        title: Диаграмма развертывания среды
+        template: templates/deployment_diagram.mmd
+        params:
+          type: object
+          properties:
+            environment_id:
+              type: string
+          required:
+            - environment_id
+        source: >
+          (
+            /*Получаем глобальные контексты*/
+            $systems := $.components;
+            $environments := $.environments;
+
+            /*Получаем параметры и проверяем их*/
+            $environment_id := $params.environment_id;
+            /*$environment_id := "prod";*/
+            $levels := $split($environment_id , ".");
+            $level := $count($levels);
+            $environment := $lookup($environments, $environment_id);
+
+            /*Получаем данные по средам*/
+            $pattern := $eval("/^" & ($level = 1 ? $environment_id & "." : $environment_id ) & "[a-zA-Z0-9\\_]*$/");
+            $nodes := $environments.$sift(function($v, $k) {$k ~> $pattern}).$spread().(
+              $environment_id := $keys()[0];
+              $environment_du := $.*.deployment_units.$spread().(
+                $env_system_id := $keys()[0];
+                $namespace := $split($env_system_id, ".");
+                $namespace := $namespace[$count($namespace)-1];
+                $env_system := $;
+                $system := $lookup($systems, $env_system_id);
+                $components := $env_system.*.$spread().(
+                  $component_id := $keys()[0];
+                  $component := $lookup($systems, $component_id);
+                  $.*.$spread().(
+                    $du_id := $;
+                    $du_pattern := $eval("/^" & $du_id & "/");
+                    $component.deployment_units != null
+                    ?
+                    $node := $component.deployment_units.$sift(function($v, $k) {$k ~> $du_pattern}).*.{
+                      "du_id": $du_id,
+                      "system_id": $env_system_id ,
+                      "component_id":  $component_id,
+                      "environment": $environment_id,
+                      "namespace": $namespace,
+                      "multiplier": $number(multiplier) > 0 ? $number(multiplier) : 1,
+                      "cpu": cpu * multiplier,
+                      "ram": ram * multiplier,
+                      "storage_size": storage_size * multiplier
+                    };
+                  );
+                );
+              );
+            );
+
+            $objects := $nodes{
+              `environment`: {
+                `namespace`: {
+                  "cpu": $sum(cpu),
+                  "ram": $sum(ram),
+                  "storage_size": $sum(storage_size),
+                  "namespace": $distinct(namespace),
+                  "environment": $distinct(environment),
+                  "system_id": $distinct(system_id),
+                  "resources": "RAM: " & ram & " Gb"
+                    & ";<br/> CPU: " & cpu & " Core"
+                    & (storage_size > 0
+                    ? ";<br/> Storage: " & storage_size & " Gb" : "")
+                  }
+              }
+            };
+
+            $du := function($environment_du, $entity) {(
+              $join($environment_du.*.(
+                $title := "![" & namespace & "](/entities/environments/system_deployment_diagram?parent=" & system_id & ":" & environment & ")";
+                $entity & "("& environment & "_" & system_id & ", \"" & $title & "\",, \"" & resources & "\")"
+              ), "\n") & "\n"
+            )};
+
+            $code := $join($objects.$spread().(
+              $id := $keys()[0];
+              $cluster_temp := $lookup($environments, $id);
+              "Deployment_Node(" & $id & ", \"" & $cluster_temp.title & "<br/> (множитель: "& $cluster_temp.multiplier &")" & "\", \"" & $cluster_temp.resource_type & "\") {\n" & $du($.*, $cluster_temp.entity) & "\n}" ;
+            ), "\n");
+
+            {
+              "notation": "C4Deployment",
+              "code":
+                $count($nodes) > 0
+                ? $code
+                : "Deployment_Node(empty_node, \"\") {\nContainer(cempty, \"Ни один из DU не привязан к этой среде\")\n}",
+              "title": $environment.description
+            };
+          )
+
+      system_deployment_diagram:
+        type: mermaid
+        title: Диаграмма развертывания системы
+        template: templates/deployment_diagram.mmd
+        params:
+          type: object
+          properties:
+            parent:
+              type: string
+          required:
+            - parent
+        source: >
+          (
+            /*Получаем глобальные контексты*/
+            $systems := $.components;
+            $dictionaries := dictionaries;
+            $environments := $.environments;
+
+            /*Получаем параметры и проверяем их*/
+            $options := $split($params.parent, ":");
+            $system_id := $options[0];
+            /*$system_id := "swamp.bu_bank.billing";*/
+            $system := $lookup($systems, $system_id);
+            $assert($type($system.title)="string", "В запрос system_deployment_diagram в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
+            $environment_id := $options[1];
+            /*$environment_id := "";*/
+            $environment_filtred := $type($environment_id)="string" ? true: false;
+
+            /*Получаем данные по DU в разрезе сред*/
+            $env_pattern := $eval("/^" &  $environment_id & "/");
+            $nodes:= $environment_filtred = true
+              ? $environments.$sift(function($v, $k) {$k ~> $env_pattern})
+              : $environments;
+            $sys_pattern := $eval("/^" &  $system_id & "/");
+            $nodes := $nodes.$spread().(
+              $environment_id := $keys()[0];
+              $.*.deployment_units != null
+              ?
+              $du := $.*.deployment_units.$sift(function($v, $k) {$k ~> $sys_pattern}).$spread().(
+              $env_system_id := $keys()[0];
+              $env_system := $;
+              $components := $env_system.*.$spread().(
+                $component_id := $keys()[0];
+                $component := $lookup($systems, $component_id);
+                $assert($type($component.title)="string", "В среде " & $environment_id & " для системы: " & $system_id & " некорректно указан идентификатор компоненты " & $component_id & ". Исправьте идентификатор и повторите операцию.");
+                $entity_dochub := $dictionaries."settings.entity".parameters[dochub=$component.entity];
+                $entity := $type($entity_dochub.dochub)="string" ? $entity_dochub.mermaid : "Container";
+                $.*.(
+                    $du_id := $;
+                    $du_pattern := $eval("/^" & $du_id & "/");
+                    $component.deployment_units != null
+                    ?
+                    $node := $component.deployment_units.$sift(function($v, $k) {$k ~> $du_pattern}).*.{
+                      "du_id": $du_id & "." & $component_id,
+                      "du": $du_id,
+                      "component_id":  $component_id,
+                      "system": $env_system_id ,
+                      "environment": $environment_id,
+                      "component_title": $component.title,
+                      "component_entity": $entity,
+                      "multiplier": $number(multiplier) > 0 ? $number(multiplier) : 1,
+                      "cpu_type": cpu_type,
+                      "cpu": cpu * multiplier,
+                      "ram": ram * multiplier,
+                      "storage_type": storage_type,
+                      "storage_size": storage_size * multiplier
+                    };
+                  );
+                );
+              );
+
+            )^(environment);
+
+            $objects := $nodes{
+              `environment`: {
+                `system`: {
+                `du_id`: {
+                  "id": du_id,
+                  "du": du,
+                  "cpu": cpu,
+                  "cpu_type": cpu_type,
+                  "ram": ram,
+                  "storage_size": torage_size,
+                  "storage_type": storage_type,
+                  "component_title": component_title,
+                  "component_entity": component_entity,
+                  "resources": "RAM: " & ram & " Gb"
+                    & (cpu_type != ""
+                    ? ";<br/> CPU type: " & cpu_type : "")
+                    & ";<br/> CPU: " & cpu & " Core"
+                    & (storage_size > 0
+                    ? ";<br/> Storage type: " & storage_type
+                    & ";<br/> Storage: " & storage_size & " Gb" : "")
+                  }
+                }
+              }
+            }^(id);
+
+            $du := function($system_du) {(
+              $join($system_du.*.(
+                component_entity & "("& id & ", \"" &component_title & " (" & du & ")\",, \"" & ($length(resources)>50 ? "<br/>" & resources : resources) & "\")"
+              ), "\n") & "\n"
+            )};
+
+            $system_du := function($environment_du, $environment_id) {(
+              $join($environment_du.$spread().(
+              $system_id := $keys()[0];
+              $system := $lookup($systems, $system_id);
+              $system_title :=$system.title;
+              $system_short_description :=$system.short_description;
+              "Deployment_Node(" & $environment_id & "_" & $system_id & ", \"" & "DU для системы " & $system_title & "\", \"" & $system_short_description & "\") {\n" & $du($.*) & "\n}" ;
+              ), "\n") & "\n"
+            )};
+
+            $code := $join($objects.$spread().(
+              $id := $keys()[0];
+              $env_temp := $lookup($environments, $id);
+              "Deployment_Node(" & $id & ", \"" & $env_temp.description & "\", \"" & $env_temp.resource_type & "\") {\n" & $system_du($.*, $id) & "\n}" ;
+            ), "\n");
+
+            {
+              "notation": "C4Deployment",
+              "code":
+                $count($nodes) > 0
+                ? $code
+                : "Deployment_Node(empty_node, \"\") {\nContainer(cempty, \"Ни один из DU не привязан к этой среде\")\n}",
+              "title": "Диаграммы развертывания для системы " & $system.title
+            };
+          )
+
+      system_du_table:
+        type: table
+        title: Таблица привязки DU к компонентам системы
+        params:
+          type: object
+          properties:
+            system_id:
+              type: string
+          required:
+            - system_id
+        headers:
+          - value: component_title
+            text: Component name
+            sortable: true
+            align: left
+            link: link_to_component
+
+          - value: component_id
+            text: Component ID
+            sortable: true
+            align: left
+            link: link_to_component            
+
+          - value: du_id
+            text: DU ID
+            sortable: true
+            align: left
+
+          - value: multiplier
+            text: Множитель
+            sortable: true
+            align: center
+            width: 10%
+
+          - value: resources
+            text: Original resources
+            sortable: true
+            align: left
+
+          - value: resources_total
+            text: Total resources
+            sortable: true
+            align: left            
+        source: >
+          (
+            /*Получаем глобальные контексты*/
+            $functions := $.functions;
+            $systems := $.components;
+
+            /*Получаем параметры и проверяем их*/
+            $system_id := $params.system_id;
+            /*$system_id := "swamp.bu_bank.billing";*/
+            $systems := $.components;
+            $system := $lookup($systems, $system_id);
+            $assert($type($system.title)="string", "В запрос system_deployment_table в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
+
+            /*Получаем данные по DU компонент системы*/
+            $comp_pattern := $eval("/^" & $system_id & "./");
+            $comp_nodes := $systems.$sift(function($v, $k) {$k ~> $comp_pattern}).$spread().(
+              $component_id := $keys()[0];
+              $system := $.*;
+              $title := $system.title;
+              $du_arr := $system.deployment_units.$spread().(
+                $du_id := $keys()[0];
+                $.*.(
+                  $multiplier := $number(multiplier) > 0 ? $number(multiplier) : 1;
+                  $cpu := $number(cpu);
+                  $total_cpu := $cpu * $multiplier;
+                  $ram := $number(ram);
+                  $total_ram := $ram * $multiplier;
+                  $storage_size := $number(storage_size);
+                  $total_storage_size:= $storage_size * $multiplier;
+                  {
+                    "du_id": $du_id,
+                    "component_id": $component_id,
+                    "link_to_component": "/architect/components/" & $component_id,
+                    "component_title": $title,
+                    "multiplier": $multiplier,
+                    "resources_total": $eval($functions.get_resources_view,
+                    {"context":
+                      {"ram": $total_ram,
+                      "cpu": $total_cpu,
+                      "storage_size": $total_storage_size,
+                      "storage_type": $.storage_type,
+                      "cpu_type": $.cpu_type
+                      }, "output_type": "full"}),
+                    "resources": $eval($functions.get_resources_view,
+                    {"context": $, "output_type": "full"})
+                  };
+                );
+              );
+              $comp_arr := $count($du_arr) = 0
+                ? {
+                    "du_id": "НЕТ DU",
+                    "component_id": $component_id,
+                    "link_to_component": "/architect/components/" & $component_id,
+                    "component_title": $title
+                };
+              $append($comp_arr, $du_arr);
+            );
+          )
+
+      system_du_join_env_table:
+        type: table
+        title: Таблица привязки DU к средам
+        params:
+          type: object
+          properties:
+            system_id:
+              type: string
+          required:
+            - system_id
+        headers:
+          - value: environment
+            text: Среда развертывания
+            sortable: true
+            align: left
+            link: link_to_environment
+
+          - value: du_id
+            text: DU ID
+            sortable: true
+            align: left
+
+          - value: component_id
+            text: Component ID
+            sortable: true
+            align: left
+            link: link_to_component
+
+          - value: resources
+            text: Original resources
+            sortable: true
+            align: left
+
+          - value: resources_total
+            text: Total resources
+            sortable: true
+            align: left
+
+        source: >
+          (
+            /*Получаем глобальные контексты*/
+            $functions := $.functions;
+            $systems := $.components;
+            $environments := $.environments;
+
+            /*Получаем параметры и проверяем их*/
+            $system_id := $params.system_id;
+            /*$system_id := "swamp.bu_bank.billing";*/
+            /*$system_id := "swamp.bu_bank.celeport";*/
+            $system := $lookup($systems, $system_id);
+            $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
+
+            /*Получаем данные по DU компонент системы*/
+            $comp_nodes := $eval($functions.get_resources,{
+              "system_id": $system_id,
+              "systems": $systems
+            });
+
+            $comp_nodes := $comp_nodes{
+              `id`: {
+                "id": id,
+                "du_id": du_id,
+                "component_id":  component_id,
+                "component_title": component_title,
+                "cpu_type": cpu_type,
+                "cpu": cpu,
+                "ram": ram,
+                "storage_type": storage_type,
+                "storage_size": storage_size,
+                "multiplier": multiplier,
+                "environment": "НЕТ среды",
+                "link_to_component": link_to_component
+                }
+              };
+
+            $sys_pattern := $eval("/^" &  $system_id & "/");
+            $env_nodes := $environments.$spread().(
+              $environmen_id := $keys()[0];
+              $.*.deployment_units != null
+              ? $du := $.*.deployment_units.$sift(function($v, $k) {$k ~> $sys_pattern}).$spread().(
+                  $env_system_id := $keys()[0];
+                  $env_system := $;
+                  $components := $env_system.*.$spread().(
+                    $component_id := $keys()[0];
+                    $component := $lookup($systems, $component_id);
+                    $assert($type($component.title)="string", "В кластере " & $environmen_id & " для системы: " & $system_id & " некорректно указан идентификатор компоненты " & $component_id & ", возможно такой компоненты нет у системы. Исправьте идентификатор и повторите операцию.");
+                    $.*.(
+                      $du_id := $;
+                      {
+                      "id": $ & "." & $component_id,
+                      "environment": $environmen_id
+                      };
+                    );
+                  );
+              );
+            );
+            $env_nodes := $env_nodes {
+              `id`: {
+                "id": id,
+                "environment": environment,
+                "link_to_environment": "/entities/environments/system_deployment_diagram?parent=" & $system_id & ":" & environment
+              }
+            };
+
+            $nodes := $mergedeep([$comp_nodes, $env_nodes]);
+            $nodes.*.{
+              "component_id": component_id,
+              "du_id": du_id,
+              "component_title": component_title,
+              "multiplier": $number(multiplier) > 0 ? $number(multiplier) : 1,
+              "resources": $eval($functions.get_resources_view,{"context": $, "output_type": "full"}),
+              "resources_total": $eval($functions.get_resources_view,
+              {"context":
+                {"ram": $.ram * multiplier,
+                "cpu": $.cpu * multiplier,
+                "storage_size": $.storage_size * multiplier,
+                "storage_type": $.storage_type,
+                "cpu_type": $.cpu_type
+                }, "output_type": "full"}),
+              "environment": environment,
+              "link_to_component": link_to_component,
+              "link_to_environment": link_to_environment
+            }^(environment);
+          )
+
+
+      # Карточка развертывания системы
+      deployment_card:
+        type: markdown
+        title: Карточка развертывания системы
+        template: templates/deployment_card.md
+        source: >
+          (
+            $systems := [$.components.$spread().$merge([$.*, {"id": $keys($)}])];
+            $systems [id=$params.id];
+          )
+
+      get_total_system_resources:
+        type: table
+        title: Общая таблица ресурсов с множителями
+        params:
+          type: object
+          properties:
+            system_id:
+              type: string
+          required:
+            - system_id
+        headers:
+          - value: resource_type
+            text: Тип среды развертывания
+            sortable: true
+            align: left
+          - value: component_entity
+            text: Тип run-time компоненты
+            sortable: true
+            align: left
+          - value: du_id
+            text: Имя DU
+            sortable: true
+            align: left
+          - value: resources_total
+            text: Total resources
+            sortable: true
+            align: left
+        source: >
+          (
+            /*Получаем глобальные контексты*/
+            $functions := $.functions;
+            $systems := $.components;
+
+            /*Получаем параметры и проверяем их*/
+            $system_id := $params.system_id;
+            /*$system_id := "swamp.bu_bank.billing";*/
+            /*$system_id := "swamp.bu_bank.celeport";*/
+            $system := $lookup($systems, $system_id);
+            $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
+
+            /*Получаем данные по DU компонент системы*/
+            $comp_nodes := $eval($functions.get_resources,{
+              "system_id": $system_id,
+              "systems": $systems
+            });
+
+            /* Суммируем ресурсы в разрезе типа среды и имени DU*/
+            $objects := $comp_nodes{
+              `resource_type`: {
+                `component_entity`: {
+                    `du_id`: {
+                    "cpu": $sum(total_cpu),
+                    "ram": $sum(total_ram),
+                    "storage_size": $sum(total_storage_size),
+                    "resource_type": $distinct(resource_type),
+                    "system_id": $distinct(system_id),
+                    "component_entity": $distinct(component_entity),
+                    "du_id": $distinct(du_id)
+                    }
+                }
+              }
+            };
+
+            /*Формируем выходной массив для таблицы*/
+            $objects.*.*.*.{
+              "resource_type": resource_type,
+              "du_id": du_id,
+              "component_entity": component_entity,
+              "resources_total": $eval($functions.get_resources_view,{"context": $, "output_type": "short"})
+            };
+          )
+
+      # Данные для API
+      # https://dochub.swampgroup.ru/entities/environments/presentations/get_total_resources?gitlab_id=1104
+      #Для теста
+      # http://localhost:3030/entities/environments/presentations/get_total_resources?gitlab_id=1104
+
+      # https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+      get_total_resources:
+        type: upload
+        title: Выгрузка DU в JSON        
+        params:           # JSONSchema контроля параметров
+          type: object
+          properties:
+            gitlab_id:
+              type: string
+          required:
+            - gitlab_id
+        source: >
+          (          
+            /*Получаем глобальные контексты*/
+            $functions := $.functions;
+            $repositories := $.repositories;
+            $systems := $.components;
+
+            /*Получаем параметры и проверяем их*/
+            $gitlab_id := $number($params.gitlab_id);
+            /*$gitlab_id := 1104;*/
+            /*$gitlab_id := 1145;*/
+            $repository := $repositories.$spread().(
+              $merge([$.*, {"id": $keys()[0]}]);
+            )[gitlab_id=$gitlab_id];
+            $assert($type($repository.id)="string", "В запрос get_total_resources в качестве параметра передан некорректный идентификатор репозитория или данный репозиторий еще не загружен в DocHub: " & $gitlab_id & ". Исправьте идентификатор и повторите операцию.");
+
+            /*Получаем идентификатор системы по id репозитория*/
+            $system := $systems.$spread().(
+              $merge([$.*, {"id": $keys()[0]}]);
+              )[$repository.id in repositories];
+            $system_id := $system.id;
+
+            /*Получаем данные по DU компонент системы*/
+            $comp_nodes := $eval($functions.get_resources,{
+              "system_id": $system_id,
+              "systems": $systems
+            });
+
+            /*
+            Группируем данные для API. Идея группировки в том, что на базе полученных данных нужно дать
+            возможность создать три заявки в SD:
+            1. разворачивание в Кубе
+            2. разворачивание СУБД вне Куба
+            3. разворачивание системы вне Куба
+            */
+
+            $objects := $comp_nodes{
+              `resource_type`: {
+                "namespace": $distinct(namespace),
+                "system_id": $distinct(system_id),
+                "components": {
+                  `component_entity`:
+                    [
+                      $.{
+                      "component_id": component_id,
+                      "du_id": du_id,
+                      "component_entity": component_entity,
+                      "multiplier": multiplier,
+                      "cpu_type": cpu_type,
+                      "cpu": cpu,
+                      "ram": ram,
+                      "storage_type": storage_type,
+                      "storage_size": storage_size
+                      }
+                    ]
+                }
+              }
+            };
+          )
+
+
+
+# Описываем основные группы сред
+environments:
+  prod:
+    title: Продуктовые среды
+    description: Диаграммы развертывания для Продуктовых сред
+  stage:
+    title: Стейдж-среды
+    description: Диаграммы развертывания для Стейдж-сред
+  dev:
+    title: Среды разработки
+    description: Диаграммы развертывания для Сред разработки

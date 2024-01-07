@@ -1,0 +1,184 @@
+entities:
+  # Инструмент анализа и визуализации метамодели
+  mm_discovery.stalker:
+    title: Исследователь метамодели
+    menu: >
+      (
+          [$."mm_discovery.stalker".$spread()[*.location].(
+              {
+                  "link": "/entities/mm_discovery.stalker/map_smartants?id=" & $keys()[0], 
+                  "location": *.location 
+              }
+
+          )]
+      )
+    schema:
+      type: object
+      patternProperties:
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
+          type: object
+          properties:
+            title:
+              title: Название
+              type: string
+            location:
+              title: Размещение
+              type: string
+            nodes:
+              title: Виртуальные ноды
+              patternProperties:
+                "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      title: Название
+                    symbol:
+                      type: string
+                      title: Символ
+                  required:
+                    - title
+              additionalProperties: false
+            domains:
+              title: Выборка доменов
+              type: array
+              items:
+                title: Фильтр доменов
+                type: string
+            hooks:
+              type: object
+              title: Обработчики данных
+              properties:
+                after:
+                  title: Пост обработчик
+                  type: string
+                before:
+                  title: Предобработчик
+                  type: string
+
+          required:
+            - title
+            - domains
+      additionalProperties: false
+    presentations:
+      map_smartants:
+        title: Карта сущностей метамодели
+        type: smartants
+        params:
+          type: object
+          properties:
+            id:
+              title: Идентификатор
+              type: string
+          required:
+            - id
+        source: >
+          (
+              $context := $lookup($."mm_discovery.stalker", $params.id);
+              $data := $context.hooks.before ? $eval($context.hooks.before, $) : $;
+              $defs := $merge(entities.*.schema."$defs");
+              $scan_props := function($props) {(
+                  $props.$keys().(
+                      $scan($lookup($props, $));
+                  );
+              )};
+          
+              $expand := function($schema) {(
+                  $schema."$ref"~>$substring(0, 8) = "#/$defs/"
+                      ? $merge([
+                            $expand($lookup($defs, $schema."$ref"~>$substring(8))),
+                            $schema,
+                            {"$ref": ""}
+                        ])
+                      : $schema;
+              )};
+          
+              $scanOf := function($schema) {(
+                  $r1 := $schema.anyOf ? $schema.anyOf : [];
+                  $r2 := $schema.anyOf ? $schema.allOf : [];
+                  $r3 := $schema.anyOf ? $schema.oneOf : [];
+                  $append($r1, $append($r2, $r3)).($scan($));
+              )};   
+          
+              $scan := function($schema) {(
+                  $deep := $expand($schema);
+          
+                  $r0 := $scanOf($deep);
+          
+                  $r0 ? $r0 : (
+                    $r1 := $deep.type = "object" 
+                        ? $scan_props($merge([$deep.properties, $deep.patternProperties]));
+                    $r2 := $deep.type = "array"
+                        ? $scan($deep.items);
+                    $r3 := $deep."$ref"~>$substring(0, 8) = "#/$rels/" 
+                        ? $deep."$ref"~>$substring(8);
+                    $append(
+                        $append($r1, $r2),
+                        $r3
+                    );
+                  )
+              )};
+          
+              $mm_map := $data.entities.$spread()[*.objects].(
+                  $entity_id := $keys()[0];
+                  $append($distinct($scan(*.schema)).{
+                        "entity": $entity_id,
+                        "ref": $~>$split(".")~>$map(
+                                    function($v, $i, $a) {
+                                        $i < $count($a) - 1 ? $v
+                                    }
+                                )~>$join(".")
+                    },
+                    {
+                      "entity": $entity_id
+                    }
+                  );
+              );
+              $isFetch := function($domain) {(
+                  ($context.domains.$wcard($domain, $))[$]
+              )};
+          
+              $result := {
+                  "header": {
+                      "title": $context.title 
+                  },   
+                  "nodes": $merge([
+                    $context.nodes,
+                    $merge($distinct($append($mm_map.entity, $mm_map.ref)).(
+                      $id := $;
+                      $isFetch($id) ? (
+                        $result := $lookup($data.entities, $id).{
+                          $id: {
+                            "title": title ? title : $id,
+                            "symbol": "system"
+                          }
+                        };
+                       $result ? $result : {
+                          $id: {
+                            "title": "LOST: "  & $id,
+                            "symbol": "component"
+                          }
+                       }               
+                      )
+                    ))
+                  ]),
+                  "links": [$mm_map[ref]~>$map(function($v, $i){(
+                      $isFetch($v.entity) and $isFetch($v.ref) ? 
+                        {
+                         "from": $v.entity,
+                         "to": $v.ref,
+                         "style": "->"
+                        }
+                  )})],
+                  "config": {
+                      "distance": 10,
+                      "trackWidth": 16
+                  }      
+              };
+          
+              $context.hooks.after ? $eval($context.hooks.after, {
+                  "result" : $result,
+                  "data": $data,
+                  "manifest": $
+              }) : $result;
+          )

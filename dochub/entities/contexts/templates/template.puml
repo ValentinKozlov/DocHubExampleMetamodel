@@ -127,10 +127,6 @@ skinparam component<<Person>> {
         component $id $color[
             <b>$ACName</b>
             ====
-    !elseif ($entity == unit)
-        component $id [
-            <b>$ACName</b>
-            ====
     !elseif ($entity == actor || $entity == person)
         actor $id $color[
         ..===$ACName..
@@ -146,8 +142,6 @@ skinparam component<<Person>> {
     !if ($entity == component)
     ]
     !elseif ($entity == system)
-    ]
-    !elseif ($entity == unit)
     ]
     !elseif ($entity == actor || $entity == person)
 'nothing

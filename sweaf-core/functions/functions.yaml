@@ -1,0 +1,262 @@
+functions:
+  # Новый вариант функций
+  get_account_new:
+    title: Получить данные аккаунта по переданному логину
+    # Входящие параметры
+    params:      
+      - alias: username        
+        title: Логин пользователя Самолет
+        required: true
+      - alias: accounts
+        type: array
+        title: Список учетных записей
+        required: true
+    code: >
+      (
+        $username := username;
+        $accounts := accounts;
+        $acc_link := "https://team.swampgroup.ru/profile/" & $username;
+        $type($username)="string"
+        ? (
+            $full_account := $accounts[name=$username];
+            $count($full_account) = 1
+            ?   (
+                $type($full_account.title)="string"
+                ?
+                $merge([$full_account, {"error" : false, "acc_link": $acc_link}])
+                :
+                {
+                    "name": $username,
+                    "title": $username,
+                    "bu": "Наименование БЮ неопределенно",
+                    "error" : true
+                };
+                )
+            : $count($full_account) > 1
+              ?
+                $full_account.(
+                  $type($.bu) = "string"
+                  ? $merge([$, {"error" : false, "acc_link": $acc_link}])
+                )
+              :
+                {
+                  "name": "Аккаунт не указан",
+                  "title": "Аккаунта " & $username & " нет в справочнике DocHub",
+                  "bu": "Наименование БЮ неопределенно",
+                  "error" : true
+                };
+          )
+        :
+          {
+              "name": "Аккаунт не указан",
+              "title": "Аккаунт не указан",
+              "bu": "Наименование БЮ неопределенно",
+              "error" : true
+          };
+      )
+  
+  # Старый вариант функций
+  # $eval($FUNCTIONS.get_account,{"username": "v.lebedev", "accounts": $DICTIONARIES."accounts".parameters})
+  get_account: >
+    (
+      $username := $.username;
+      $accounts := $.accounts;
+      $acc_link := "https://team.swampgroup.ru/profile/" & $username;
+      $type($username)="string"
+      ?   (
+          $full_account := $accounts[name=$username];
+          $count($full_account) = 1
+          ?   (
+              $type($full_account.title)="string"
+              ?
+              $merge([$full_account, {"error" : false, "acc_link": $acc_link}])
+              :
+              {
+                  "name": $username,
+                  "title": $username,
+                  "bu": "Наименование БЮ неопределенно",
+                  "error" : true
+              };
+              )
+          : $count($full_account) > 1
+            ?
+              $full_account.(
+                $type($.bu) = "string"
+                ? $merge([$, {"error" : false, "acc_link": $acc_link}])
+              )
+            :
+              {
+                "name": "Аккаунт не указан",
+                "title": "Аккаунта " & $username & " нет в справочнике DocHub",
+                "bu": "Наименование БЮ неопределенно",
+                "error" : true
+              };
+          )
+      :
+          {
+              "name": "Аккаунт не указан",
+              "title": "Аккаунт не указан",
+              "bu": "Наименование БЮ неопределенно",
+              "error" : true
+          };
+    )
+  
+  # Примеры
+  # $eval($functions.get_resources_view,{"context": $, "output_type": "short"})
+  # $eval($functions.get_resources_view,{"context": $, "output_type": "full"})
+  get_resources_view: >
+    (
+      $context := $.context;
+      $output_type := $.output_type;
+      $output_type = "short"
+      ? "RAM: " & $context.ram & " Gb" & "\n"
+        & "CPU: " & $context.cpu & " Core" & "\n"
+        & ($context.storage_size > 0
+        ? "Storage: " & $context.storage_size & " Gb")
+      : "RAM: " & $context.ram & " Gb" & "\n"
+        & ($context.cpu_type != ""
+          ? "CPU type: " & $context.cpu_type & "\n" : "")
+        & "CPU: " & $context.cpu & " Core" & "\n"
+        & ($context.storage_size > 0 
+          ? "Storage type: " & $context.storage_type & "\n"
+          & "Storage: " & $context.storage_size & " Gb" : "")
+    )
+  
+  # Получить ресурсы по системе
+  get_resources: >
+    (
+      /*Проверяем входящие параметры*/
+      $system_id := $.system_id;
+      $systems := $.systems;
+      $system := $lookup($systems, $system_id);
+      $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");      
+      
+      /*Получаем информацию по DU*/
+      $comp_pattern := $eval("/^" & $system_id & "./");
+      $comp_nodes := $systems.$sift(function($v, $k) {$k ~> $comp_pattern}).$spread().(
+          $component_id := $keys()[0];			
+          $component := $.*;
+          $title := $system.title;
+          $du := $component.deployment_units.$spread().(			
+          $du_id := $keys()[0];			
+          $.*.(
+            /*Выносим расчеты за алгоритм формирования JSON, так как внутри типы определяются некорректно */
+            $multiplier := $number(multiplier) > 0 ? $number(multiplier) : 1;
+            $cpu := $number(cpu);
+            $total_cpu := $cpu * $multiplier;
+            $ram := $number(ram);
+            $total_ram := $ram * $multiplier;
+            $namespace := $split($system_id, ".");
+            $namespace := $namespace[$count($namespace)-1];
+            {
+              "id": $du_id & "." & $component_id,
+              "du_id": $du_id,
+              "system_id": $system_id ,
+              "namespace": $namespace,            
+              "component_id":  $component_id,            
+              "component_title": $component.title,
+              "component_entity": $component.entity,
+              "resource_type": resource_type,
+              "multiplier": $multiplier,
+              "cpu_type": cpu_type,              
+              "cpu": $cpu,
+              "total_cpu": $total_cpu,
+              "ram": $ram,
+              "total_ram": $total_ram,
+              "storage_type": storage_type,
+              "storage_size": storage_size,
+              "total_storage_size": storage_size * multiplier,
+              "link_to_component":  "/architect/components/" & $component_id               
+            };                
+          );
+        );		
+      );
+    )
+
+  # Получение общего рейтинга системы
+  get_systems_total_rating: >
+    (
+      $system_id := $.system_id;
+      $components := $.components;
+      $dictionaries := $.dictionaries;
+      $functions := $.functions;
+      $system := $lookup($components, $system_id);
+      $system.entity = "system"
+      ? (
+        $system_indicators := $eval($functions.get_system_indicators, {'system': $system, 'dictionaries': $dictionaries});
+        $rate := $eval($functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $dictionaries});
+        )
+      : ""
+    )
+
+  # Расчет общего рейтинга системы на основании оценок индикаторов здоровья
+  get_indicators_total_rating: >
+    (
+      $system_indicators := $.indicators;
+      $INDICATORS := $.dictionaries."system_health.indicators".parameters;
+      $FITNESS := $.dictionaries."system_health.fitness".parameters;
+      $RATINGS := $.dictionaries."system_health.ratings".parameters;
+      $MAX_INDICATOR_WEIGHT := $max($INDICATORS.weight);
+      $MIN_FIT := $sort($FITNESS, function ($l, $r) { $l.rate > $r.rate })[0].name;
+
+      $normalized_system_indicators := $map(
+        $system_indicators,
+        function($indicator, $k) {
+          {
+              'id': $indicator.id,
+              'fit': 1 - (1 - $FITNESS[name=$indicator.fit].rate) * $INDICATORS[name=$indicator.id].weight / $MAX_INDICATOR_WEIGHT
+          }
+        }
+      );
+
+      $system_average_fit := 
+        $count(
+          $filter(
+            $system_indicators, 
+            function ($indicator) { $indicator.fit = $MIN_FIT and $INDICATORS[name=$indicator.id].is_critical }
+          )
+        ) > 0 
+          ? 0
+          : $average($normalized_system_indicators.fit);
+
+      $rate := $reduce(
+          $sort($RATINGS, function ($a, $b) {$a.threshold > $b.threshold}), 
+          function ($rating, $value) {
+              $rating := $system_average_fit >= $value.threshold ? $value.name : $rating
+          },
+          null
+      );
+      $RATINGS[name=$rate];
+    )
+
+  get_system_indicators: >
+    (
+      $system := $.system;
+      $INDICATORS := $filter($.dictionaries."system_health.indicators".parameters, function ($v) { $v.requirements ? $eval($v.requirements, $system) : true });
+      $is_external := $contains($system.id, /^world\./i);
+
+      $system_indicators := 
+        ($is_external = false or $system.indicators) 
+          ? $INDICATORS.(
+            $indicator := $;
+            $system_indicator := $system.indicators[id = $indicator.name];
+            $system_sep_result := $lookup($system.seps, $indicator.sep.id);
+
+            $system_sep_fit := $indicator.sep.fit.($system_sep_result in $.* ? $keys()[0]);
+
+            $indicator.sep ? {
+                'id': $indicator.name,
+                'fit': $system_sep_fit ? $system_sep_fit : "none",
+                'comment':
+                  $system_sep_result
+                    ? $join(["Расчитано на основе автоматической проверки ", $uppercase($indicator.sep.id), ". Результат проверки: ", $system_sep_result])
+                    : "Результат проверки не найден",
+                'date': null
+            } : {
+                'id': $indicator.name,
+                'fit': $system_indicator ? $system_indicator.fit : "none",
+                'comment': $system_indicator ? $system_indicator.comment : null,
+                'date': $system_indicator ? $system_indicator.date : null
+            }
+          );
+    )

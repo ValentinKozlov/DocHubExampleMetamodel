@@ -2,12 +2,14 @@
 entities:
   components:
     title: Компоненты
+    config:
+      root_menu: "Прикладная архитектура"  # Корневое меню представления компонентов
     description: >
       Архитектурные компоненты.
     schema:
       type: object
       patternProperties:
-        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$":
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -89,7 +91,7 @@ entities:
         [
           {
             "link": "/entities/components/tree",
-            "location": "Прикладная архитектура"
-          }          
+            "location": entities.components.config.root_menu
+          }
         ]
       )

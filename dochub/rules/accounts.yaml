@@ -1,62 +1,88 @@
 rules:
   validators:
-    swamp.accounts:
+    samolet.accounts:
       title: Контроль аккаунтов
-    swamp.accounts.null:
+    samolet.accounts.null:
       title: Не заполнена одна из ключевых ролей системы      
       source: >
         (
-          $MANIFEST := $;
-          $DICTIONARIES := $.dictionaries;
-          $FUNCTIONS := $.functions;
+          $manifest := $;
+          $systems := $manifest.components;
+          $dictionaries := $manifest.dictionaries;
+          $functions := $manifest.functions;
+          $tactical_units := $manifest.tactical_units;
+          
+          $matcher := /^[a-z]/;
+          $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
 
-          $MANIFEST.components.$spread().(
-              $COMPONENT_ID := $keys()[0];
-              $.*.{
-                  "id": $COMPONENT_ID,
-                  "entity": entity,
-                  "budget_holder": budget_holder,
-                  "application_owner": application_owner,
-                  "business_owners": business_owners,
-                  "architect": architect
-              }
-          )[entity="system" and ($not(budget_holder) or $not(application_owner) or $not(business_owners) or $not(architect))].(
-            $problems := $join([(budget_holder ? '': 'budget_holder'), (application_owner ? '': 'application_owner'), (business_owners ? '': 'business_owners'), (architect ? '': 'architect')][$], ", ");
-            {
-              "uid": "$smlt-accounts-null-" & id,
-              "location": "/architect/components/" & id,
-              "correction": "Укажите эксперта по системе (" & $problems & ')',
-              "description": "Системы должны иметь сведения об экспертах: budget_holder, application_owner, business_owners, architect"
-            }
-          )
+          [$systems.$spread().(
+            $system_id := $keys()[0];      
+            $system := $.*;
+            $system.entity = "system" ?
+            (
+              $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+              $scan_fields.(
+                $param := $;
+                $val := $lookup($systems_parameters, $param); /* Внутри конкретной сущности берем значение конкретного реквизита для каждого поля указанного в $scan_fields*/
+                $exists($matcher($val))=false
+                ?
+                  {
+                    "uid": "[$smlt-accounts-null] " & $system_id & " | " & $param,
+                    "location": "/architect/components/" & $system_id,
+                    "correction": "Укажите значение поля [" & $param & "] в виде username, текущее значение - [" & $val & "]",
+                    "description": "Система должны иметь сведения: [" & $dictionaries."settings.contacts".parameters[name=$param].title & "]"
+                  }
+              );
+            )
+          )];
         )
 
-    swamp.accounts.nousername:
+    samolet.accounts.nousername:
       title: Не корректно заполнена одна из ключевых ролей системы      
       source: >
         (
-          $MANIFEST := $;
-          $DICTIONARIES := $.dictionaries;
-          $FUNCTIONS := $.functions;
-          $matcher := /^[А-я]/;
+          $manifest := $;
+          $systems := $manifest.components;
+          $dictionaries := $manifest.dictionaries;
+          $functions := $manifest.functions;
+          $tactical_units := $manifest.tactical_units;
 
-          $MANIFEST.components.$spread().(
-            $COMPONENT_ID := $keys()[0];
-            $.*.{
-              "id": $COMPONENT_ID,
-              "entity": entity,
-              "budget_holder": budget_holder,
-              "application_owner": application_owner,
-              "business_owners": business_owners,
-              "architect": architect
-            }
-          )[entity="system" and ($matcher(budget_holder) or $matcher(application_owner) or $matcher(business_owners) or $matcher(architect))].(
-            $problems := $join([($matcher(budget_holder) ? 'budget_holder': ''), ($matcher(application_owner) ? 'application_owner': ''), ($matcher(business_owners) ? 'business_owners': ''), ($matcher(architect) ? 'architect': '')][$], ", ");
-            {
-              "uid": "$smlt-accounts-nousername-" & id,
-              "location": "/architect/components/" & id,
-              "correction": "Укажите эксперта по системе в виде username (" & $problems & ")",
-              "description": "Системы должны иметь сведения об экспертах в атрибутах budget_holder, application_owner, business_owners, architect в виде username"
-            }
-          )
+          /* Пишем функцию для получения списка ошибок */
+          $errors_list := function($field, $manifest, $system_id, $param) {(
+            $dictionaries := $manifest.dictionaries;
+            $functions := $manifest.functions;
+            $eval($functions.get_account,{"username": $field, "accounts": $dictionaries."accounts".parameters}).error = true ?
+              (              
+                {
+                  "uid": "[$smlt-accounts-null] " & $system_id & " | " & $param,
+                  "location": "/architect/components/" & $system_id,
+                  "correction": "Ошибочно указано значение поля [" & $param & "]. Возможно сотрудник уже уволился. Значение должно быть виде username, текущее значение - [" & $field & "]",
+                  "description": "Система должны иметь сведения : [" & $dictionaries."settings.contacts".parameters[name=$param].title & "]"
+                };              
+              )
+          )};      
+
+          $matcher := /^[a-z]/;
+          $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+
+          [$systems.$spread().(
+            $system_id := $keys()[0];      
+            $system := $.*;
+            $system.entity = "system" ?
+            (
+              $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+              $scan_fields.(
+                $val := $lookup($systems_parameters, $); /* Внутри конкретной сущности берем значение конкретного реквизита для каждого поля указанного в $scan_fields*/        
+                $matcher($val) ? 
+                ( 
+                  $param := $; 
+                  $param = "business_owners"
+                  ?
+                    $val.([$errors_list($, $manifest, $system_id, $param)])
+                  :                    
+                    [$errors_list($val, $manifest, $system_id, $param)];
+                )
+              );
+            )
+          )];
         )

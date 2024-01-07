@@ -1,0 +1,7 @@
+imports:
+  - app/root.yaml
+  - ba/root.yaml
+  - ia/root.yaml
+  - ta/root.yaml
+  - dochub_menu/root.yaml
+  
