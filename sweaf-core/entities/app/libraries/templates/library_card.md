@@ -39,7 +39,7 @@ ID справочника в DocHub: **{{library_id}}**
 
 ### Список систем в которых используется библиотека
 
-![Список систем в которых используется бизнес-сущность](@entity/libraries/systems_library_used.filtered?library_id={{library_id}})
+![Список систем в которых используется библиотека](@entity/sweaf.app.libraries/systems_library_used.filtered?library_id={{library_id}})
 
 
 

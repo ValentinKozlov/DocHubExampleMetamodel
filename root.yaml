@@ -1,9 +1,7 @@
 imports:
-  # - swamp/root.yaml
   - dochub/root.yaml
   - sweaf-core/root.yaml
-  # - datasets/root.yaml
-  # - jsonata/root.yaml
+  - mm-discovery/root.yaml
 
 swamphub:
   metamodel:
