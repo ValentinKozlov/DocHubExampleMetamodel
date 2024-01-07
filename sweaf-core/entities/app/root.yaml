@@ -1,3 +1,4 @@
 imports:
   - libraries/root.yaml
   - sequence_diagrams/root.yaml
+  - components.yaml

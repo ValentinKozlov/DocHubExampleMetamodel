@@ -1,8 +1,60 @@
 entities:  
   sweaf.app.libraries:
-    title: Модель управления библиотеками ГК Болото
+    title: Модель управления библиотеками
     description: >
       При помощи данной сущности описываются библиотеки
+    schema:
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+          type: object
+          properties:
+            title:
+              title: Название библиотеки
+              type: string
+            description:
+              title: Полное описание библиотек
+              type: string
+            library_type:
+              title: Модель разработки библиотеки
+              enum:
+                - inhouse
+                - external
+            control_type:
+              title: Регламентируемость использования библиотеки
+              enum:
+                - regulated
+                - external
+            mentor:
+              title: Логин сотрудника, определяющего вектор развития и популяризации библиотеки
+              type: string
+            maintainers:
+              title: Логины сотрудников, выполняющих внесение изменений в кодовую базу библиотеки
+              type: array
+              items:
+                type: string
+            repository:
+              title: Ссылка на репозиторий
+              type: string
+            technologies:
+              title: Используемые технологии в библиотеки из справочника технологий
+              type: array
+              items:
+                type: string
+          required:
+            - title
+            - description
+            - library_type
+            - control_type
+            - mentor
+            - repository
+    objects:
+      library:
+        route: "/"
+        title: Библиотека
+        symbol: "do"
+
+
     menu: >
       (
         [
