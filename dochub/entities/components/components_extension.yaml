@@ -136,10 +136,8 @@ entities:
         source: >
           (
             $system_id := $params.component;
-            /*$system_id := "samolet.bu_csp.sid";*/
-
             $manifest := $;        
-            $dictionaries := $manifest.dictionaries;
+            $dictionaries := $manifest."sweaf.ia.dictionaries";
             $functions := $manifest.functions;
             $accounts := $dictionaries."accounts".parameters;
             $systems := $manifest.components;
@@ -199,8 +197,7 @@ entities:
             link: url
         source: >
           (
-            $system_id := $params.component;
-            /*$system_id := "samolet.bu_csp.sid";*/
+            $system_id := $params.component;            
             $field_id := $params.field_id;
             $field_id := "urls";
             $_manifest := $;
@@ -231,8 +228,7 @@ entities:
 
         source: >
           (
-            $system_id := $params.component;
-            /*$system_id := "samolet.bu_csp.ithub";*/
+            $system_id := $params.component;            
             [docs.$spread().(
               $link := "/docs/" & $keys()[0];
               $system_id in *.subjects ?
@@ -272,7 +268,6 @@ entities:
         source: >
           (
             $system_id := $params.component;
-            /* $system_id := "samolet.bu_csp.sid"; */
             $components := $.components;
 
             $all_repositories := $.repositories;
@@ -334,8 +329,7 @@ entities:
             width: 40%
         source: >
           (
-            $system_id := $params.component;
-            /* $system_id := "samolet.bu_csp.sid"; */
+            $system_id := $params.component;            
             $system_tech := $lookup($.components, $system_id).technologies;
             $all_tech := $.technologies.(
               $sections := $.sections;
@@ -384,17 +378,16 @@ entities:
         type: rating
         source: >
           (
-            $system_id := $params.component;
-            /*$system_id := "samolet.bu_csp.sid";*/
-            $indicators := $.dictionaries."system_health.indicators".parameters;
-            $fitness := $.dictionaries."system_health.fitness".parameters;
-            $ratings := $.dictionaries."system_health.ratings".parameters;
+            $system_id := $params.component;            
+            $indicators := $."sweaf.ia.dictionaries"."system_health.indicators".parameters;
+            $fitness := $."sweaf.ia.dictionaries"."system_health.fitness".parameters;
+            $ratings := $."sweaf.ia.dictionaries"."system_health.ratings".parameters;
 
             $system := $lookup($.components, $system_id);
-            $system_indicators := $eval($.functions.get_system_indicators, {'system': $system, 'dictionaries': $.dictionaries});
+            $system_indicators := $eval($.functions.get_system_indicators, {'system': $system, 'dictionaries': $."sweaf.ia.dictionaries"});
 
             ($system_indicators) ? (
-              $rate := $eval($.functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $.dictionaries});
+              $rate := $eval($.functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $."sweaf.ia.dictionaries"});
               {
                   'rating': $rate,
                   'indicators': $system_indicators.(
@@ -429,8 +422,7 @@ entities:
           - value: description
             text: Описание
         source: >
-          (
-            /* $system_id := "samolet.bu_csp.sid"; */
+          (            
             $system_id := $params.component;
             $matcher := $eval("/^.*" & $system_id & "$/");
             $manifest := $;
@@ -496,7 +488,7 @@ entities:
           (
             $manifest := $;
             $systems := $manifest.components;
-            $dictionaries := $manifest.dictionaries;
+            $dictionaries := $manifest."sweaf.ia.dictionaries";
             $functions := $manifest.functions;
             $accounts := $dictionaries."accounts".parameters;
             $tactical_units := $manifest.tactical_units;

@@ -31,7 +31,7 @@ entities:
               $domains_number := $count($tu);
 
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
-              /*чем 2 домена, то берем его целиком. Например, для идентификатора samolet.bu_csp берем его, а для samolet.bu_csp.platform10d берем platform10d */
+              /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_crocodiles берем его, а для swamp.bu_crocodiles.platform10d берем platform10d */
               $tactical_unit := $lookup($manifest.tactical_units, $domains_number > 2 ? $tu[$domains_number-1] : $domain);
               $component := $lookup($components, $domain);
               $context := $lookup($manifest.contexts, $domain);              
@@ -65,7 +65,7 @@ entities:
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
                       $system_rate := $eval($manifest.functions.get_systems_total_rating, {'system_id': $originDomain,
-                        'components': $manifest.components, 'dictionaries': $manifest.dictionaries, 'functions': $manifest.functions});
+                        'components': $manifest.components, 'dictionaries': $manifest."sweaf.ia.dictionaries", 'functions': $manifest.functions});
                       $color := $originDomain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
                       $result := "$Entity(\"" 
                           & $entity 

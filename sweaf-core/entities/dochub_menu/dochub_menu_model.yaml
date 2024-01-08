@@ -2,6 +2,26 @@ entities:
   # Типы кластеров
   dochub_menu:
     title: Menu DocHub
+    schema:
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+          type: object
+          properties:
+            title:
+              title: Имя пункта меню
+              type: string
+            order:
+              title: Задает последовательность пункта в меню
+              type: number
+            visible:
+              title: Задает видимость пункта в меню
+              type: boolean
+          required:
+            - title
+            - order
+            - visible
+            
     menu: >
       (
         $dochub_menu := $.dochub_menu;

@@ -17,4 +17,4 @@ ID бизнес-сущности в DocHub: **{{id}}**
 
 ### Список систем в которых используется бизнес-сущность
 
-![Список систем в которых используется бизнес-сущность](@entity/business_entities/systems_business_entity_used.filtered?id={{id}})
+![Список систем в которых используется бизнес-сущность](@entity/sweaf.ia.business_entities/systems_business_entity_used.filtered?id={{id}})

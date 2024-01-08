@@ -228,7 +228,7 @@ datasets:
     source: >
       (
         $manifest := $;
-        $dictionaries := $manifest.dictionaries;
+        $dictionaries := $manifest."sweaf.ia.dictionaries";
         $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
         $distinct([$manifest."sweaf.app.libraries".$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(

@@ -3,6 +3,7 @@ mm_discovery.stalker:
   swamp.overview:
     title: Общая карта
     location: Метамодель/Общая метамодель
+    order: 10100
     nodes:
       sweaf:
         title: SWEAF
@@ -43,9 +44,10 @@ mm_discovery.stalker:
         
             ]);
         )
-  swamp.applcation:
+  swamp.app:
     title: Прикладная архитектура
-    location: Метамодель/Прикладная
+    location: Метамодель/Прикладная архитектура
+    order: 10200
     nodes:
       sweaf:
         title: SWEAF
@@ -55,9 +57,10 @@ mm_discovery.stalker:
       - aspects
       - components      
       - sweaf.app.**
-  swamp.technical:
+  swamp.ta:
     title: Техническая архитектура
-    location: Метамодель/Техническая
+    location: Метамодель/Техническая архитектура
+    order: 10400
     nodes:
       sweaf:
         title: SWEAF
@@ -68,6 +71,7 @@ mm_discovery.stalker:
   swamp.ia:
     title: Информационная архитектура
     location: Метамодель/Информационная архитектура
+    order: 10300
     nodes:
       sweaf:
         title: SWEAF
@@ -78,6 +82,7 @@ mm_discovery.stalker:
   swamp.ba:
     title: Бизнес-архитектура
     location: Метамодель/Бизнес-архитектура
+    order: 10500
     nodes:
       sweaf:
         title: SWEAF

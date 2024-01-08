@@ -1,21 +1,49 @@
 entities: # Сущности расширенной метамодели
   # Бизнес-сущности
-  business_entities:               # Секция, где будет описываться объекты сущности "взаимодействие". Обязательно.enti
-    title: Бизнес-сущности   # Название сущности. Обязательно.
+  sweaf.ia.business_entities:               # Секция, где будет описываться объекты сущности "взаимодействие". Обязательно.enti
+    title: Модель управления бизнес-сущностями   # Название сущности. Обязательно.
     description: >          # Описание сущности текст или ссылка на документ. Необязательно.
-      Ключевые бизнес-сущности ГК Болото
+      При помощи данной сущности описываются ключевые бизнес-сущности
+    schema:
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+          type: object
+          properties:
+            title:
+              title: Наименование бизнес-сущности
+              type: string
+            description:
+              title: Физический смысл бизнес-сущности
+              type: string
+            parameters:
+              title: Список реквизитов бизнес-сущности
+              type: array
+              items:
+                type: string            
+          required:
+            - title
+            - description
+            - parameters
+    objects:
+      business_entity:
+        route: "/"
+        title: Бизнес-сущность
+        symbol: "do"
+
+
     menu: >                 # Генератор раcположения в меню. Запрос или явное описание объета. Необязательно.
       (
         [
 
           {
             "icon": *.icon,
-            "link": "entities/business_entities/business_entities_list",
+            "link": "entities/sweaf.ia.business_entities/business_entities_list",
             "location": "Информационная архитектура/Бизнес-сущности"
           },
           {
             "icon": *.icon,
-            "link": "entities/business_entities/business_entities_in_systems",
+            "link": "entities/sweaf.ia.business_entities/business_entities_in_systems",
             "location": "Информационная архитектура/Список бизнес-сущностей в системах"            
           }
         ]
@@ -42,7 +70,7 @@ entities: # Сущности расширенной метамодели
             text: Описание бизнес-сущности
             sortable: false
             align: left
-        source: swamp.dataset.business_entities_list
+        source: sweaf.ba.dataset.business_entities_list
 
       # Выводим список бизнес-сущностей полученных в запросе выше business_entities_list
       business_entities_list:
@@ -64,7 +92,7 @@ entities: # Сущности расширенной метамодели
         template: templates/business_entity_card.md
         source: >            
           (
-            $entities := [$.business_entities.$spread().$merge([$.*, {"id": $keys($)}])];
+            $entities := [$."sweaf.ia.business_entities".$spread().$merge([$.*, {"id": $keys($)}])];
             $entities [id=$params.id];
           )
 
@@ -96,7 +124,7 @@ entities: # Сущности расширенной метамодели
             sortable: true
             align: left
 
-        source: swamp.dataset.business_entities_in_systems
+        source: sweaf.ba.dataset.business_entities_in_systems
 
       # Выводим писок бизнес-сущностей используемых в системах полученных в запросе выше business_entities.in_systems
       business_entities_in_systems:
@@ -133,7 +161,7 @@ entities: # Сущности расширенной метамодели
             sortable: true
             align: left
 
-        origin: swamp.dataset.business_entities_in_systems       # Базовый источник данных
+        origin: sweaf.ba.dataset.business_entities_in_systems       # Базовый источник данных
         source: >
           (
               $[system_id=$params.system_id]
@@ -162,8 +190,52 @@ entities: # Сущности расширенной метамодели
             text: ID системы в DocHub
             sortable: true
             align: left
-        origin: swamp.dataset.business_entities_in_systems # Базовый источник данных
+        origin: sweaf.ba.dataset.business_entities_in_systems # Базовый источник данных
         source: >
           (
               [$[id=$params.id]]
           )
+
+datasets:
+  # Получаем список бизнес-сущностей с линками на карточку бизнес-cущности
+  sweaf.ba.dataset.business_entities_list:
+    source: >
+      (
+        [$."sweaf.ia.business_entities".$spread().(
+        $ENTITY_ID :=  $keys()[0];
+        $entities := $.*.{
+          "id": $ENTITY_ID,
+          "title":  title,
+          "description":  description,
+          "link_to_entity": "/entities/sweaf.ia.business_entities/business_entity_card?id=" & $ENTITY_ID
+          };
+        )]^(title)
+      )
+
+  # Cписок бизнес-сущностей в системах с линками на карточку бизнес-cущности
+  sweaf.ba.dataset.business_entities_in_systems:            # Идентификатор источника
+    source: >                   # JSONata запрос к архитектуре
+      (
+          $MANIFEST := $;
+          $distinct([$MANIFEST.components.$spread().(
+          $COMPONENT := $;
+          $COMPONENT_ID := $keys()[0];
+          $business_entities :=  $distinct($COMPONENT.*.business_entities.(
+              $ENTITY := $;
+              $ENTITIES := $lookup($MANIFEST."sweaf.ia.business_entities", $ENTITY);
+              $ENTITIES := $merge([$ENTITIES, {"id": $ENTITY}]);
+              $COMPONENT := $lookup($MANIFEST.components, $COMPONENT_ID);
+              {
+              "id": $ENTITIES.id,                /* ID бизнес-сущности в DocHub */
+              "title": $type($ENTITIES.title)="string" ? $ENTITIES.title : "Ошибка в идентификаторе бизнес-сущности",
+              "link_to_entity": $type($ENTITIES.title)="string" ? "/entities/sweaf.ia.business_entities/business_entity_card?id=" & $ENTITIES.id : "",
+              "system_id": $COMPONENT_ID,
+              "link_to_system": "/architect/components/" & $COMPONENT_ID,
+              "system_title": $COMPONENT.title,
+              "system_entities": "Отбор по системе",
+              "link_to_system_entities": "/entities/sweaf.ia.business_entities/business_entities_table_in_systems.filtered?system_id=" & $COMPONENT_ID
+              }
+              )
+          );
+          )])^(system_id)
+        )

@@ -1,14 +1,50 @@
 
-entities:
-  # Типы кластеров
-  environments:
-    title: Типы сред развертывания систем
+entities:  
+  sweaf.ta.environments:
+    title: Модель управления средами развертывания систем
     description:
       > # Описание сущности текст или ссылка на документ. Необязательно.
-      Типы сред развертывания систем ГК Болото
+      При помощи данной сущности описываются среды развертывания систем
+    schema:
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+          type: object
+          properties:
+            title:
+              title: Имя среды
+              type: string
+            description:
+              title: Физический смысл среды развертывания
+              type: string
+            resource_type:
+              title: Тип среды развертывания
+              enum:
+                - k8s
+                - vm
+                - phisycal
+            entity:
+              title: Тип сущности в нотации mermaid
+              enum:
+                - Container
+                - ContainerDb
+            deployment_units:
+              title: Ссылка на DU указанные в системе
+              $ref: "#/$rels/components.component"
+          required:
+            - title
+            - description
+            - resource_type
+            - entity
+    objects:
+      environment:
+        route: "/"
+        title: Среда
+        symbol: "do"
+
     menu: >
       (
-        $environments := $.environments;
+        $environments := $."sweaf.ta.environments";
         $makeLocation := function($id) {(
             $arrleft := function($arr ,$count) {
                 $map($arr, function($v, $i) {
@@ -16,19 +52,19 @@ entities:
                 })
             };
             $domains := $split($id, ".");
-            "Технологическая архитектура/Среды развертывания ГК Болото/" & $join($map($domains, function($domain, $index) {(
+            "Технологическая архитектура/Среды развертывания/" & $join($map($domains, function($domain, $index) {(
                 $lookup($environments, $join($arrleft($domains, $index), ".")).title
             )}), "/");
         )};
 
         $menu := $append([{
               "icon": *.icon,                                                 /* Получаем иконку */
-              "link": "entities/environments/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
-              "location": "Технологическая архитектура/Среды развертывания ГК Болото"                                    /* Расположение в меню */
+              "link": "entities/sweaf.ta.environments/tree",                           /* Ссылка на форму представления tree (дерево дерево объектов "interactions") */
+              "location": "Технологическая архитектура/Среды развертывания"                                    /* Расположение в меню */
           }],
-              [$.environments.$spread().{
+              [$."sweaf.ta.environments".$spread().{
                   "icon": *.icon,                                             /* Получаем иконку */
-                  "link": "entities/environments/environment_deployment_diagram?environment_id="& $keys()[0],     /* Формируем ссылку на бланк документ */
+                  "link": "entities/sweaf.ta.environments/environment_deployment_diagram?environment_id="& $keys()[0],     /* Формируем ссылку на бланк документ */
                   "location": $makeLocation($keys()[0])                       /* Формируем расположение в меню */
               }][location]
           );
@@ -47,7 +83,7 @@ entities:
                       $i <= $count ? $v
                   })
               };
-              $environments := $.environments;
+              $environments := $."sweaf.ta.environments";
               [$environments.$spread().($merge([{"id" : $keys()[0]}, $.*]))^(id).(
                   $prev_nodes := $split($get("rpev-id"), ".");
                   $prev_level := $count($prev_nodes);
@@ -61,7 +97,7 @@ entities:
                               "id": $id,
                               "level": $pad("", $i + 2, "*"),
                               "title": $cluster ? $cluster.title : $id,
-                              "link": "/entities/environments/environment_deployment_diagram?environment_id=" & $id
+                              "link": "/entities/sweaf.ta.environments/environment_deployment_diagram?environment_id=" & $id
                           }
                       );
                   )});
@@ -85,7 +121,7 @@ entities:
           (
             /*Получаем глобальные контексты*/
             $systems := $.components;
-            $environments := $.environments;
+            $environments := $."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $environment_id := $params.environment_id;
@@ -147,7 +183,7 @@ entities:
 
             $du := function($environment_du, $entity) {(
               $join($environment_du.*.(
-                $title := "![" & namespace & "](/entities/environments/system_deployment_diagram?parent=" & system_id & ":" & environment & ")";
+                $title := "![" & namespace & "](/entities/sweaf.ta.environments/system_deployment_diagram?parent=" & system_id & ":" & environment & ")";
                 $entity & "("& environment & "_" & system_id & ", \"" & $title & "\",, \"" & resources & "\")"
               ), "\n") & "\n"
             )};
@@ -184,7 +220,7 @@ entities:
             /*Получаем глобальные контексты*/
             $systems := $.components;
             $dictionaries := dictionaries;
-            $environments := $.environments;
+            $environments := $."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $options := $split($params.parent, ":");
@@ -443,7 +479,7 @@ entities:
             /*Получаем глобальные контексты*/
             $functions := $.functions;
             $systems := $.components;
-            $environments := $.environments;
+            $environments := $."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $system_id := $params.system_id;
@@ -500,7 +536,7 @@ entities:
               `id`: {
                 "id": id,
                 "environment": environment,
-                "link_to_environment": "/entities/environments/system_deployment_diagram?parent=" & $system_id & ":" & environment
+                "link_to_environment": "/entities/sweaf.ta.environments/system_deployment_diagram?parent=" & $system_id & ":" & environment
               }
             };
 
@@ -572,8 +608,6 @@ entities:
 
             /*Получаем параметры и проверяем их*/
             $system_id := $params.system_id;
-            /*$system_id := "swamp.bu_bank.billing";*/
-            /*$system_id := "swamp.bu_bank.celeport";*/
             $system := $lookup($systems, $system_id);
             $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
 
@@ -688,7 +722,7 @@ entities:
 
 
 # Описываем основные группы сред
-environments:
+sweaf.ta.environments:
   prod:
     title: Продуктовые среды
     description: Диаграммы развертывания для Продуктовых сред

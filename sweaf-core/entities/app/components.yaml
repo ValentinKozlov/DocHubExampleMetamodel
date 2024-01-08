@@ -18,8 +18,27 @@ entities:
               type: array
               items:
                 $ref: "#/$rels/sweaf.app.libraries.library"
+            business_entities:
+              title: Бизнес-сущности используемые в системе 
+              type: array
+              items:
+                $ref: "#/$rels/sweaf.ia.business_entities.business_entity"
+            business_owners:
+              title: Логины бизнес-владельцев процессов реализованных в системе 
+              type: array
+              items:
+                $ref: "#/$rels/sweaf.ia.dictionaries.dictionary"
+            application_owner:
+              title: Логин владельца системы
+              $ref: "#/$rels/sweaf.ia.dictionaries.dictionary"
+            architect:
+              title: Логин сотрудника, выполняющего роль системного архитектора для данной системы
+              $ref: "#/$rels/sweaf.ia.dictionaries.dictionary"  
+            budget_holder:
+              title: Логин сотрудника управляющего бюджетом для данной системы
+              $ref: "#/$rels/sweaf.ia.dictionaries.dictionary"   
             aspects:
-              title: Функциональность
+              title: Функциональность системы
               type: array
               items:
                 $ref: "#/$rels/aspects.aspect"

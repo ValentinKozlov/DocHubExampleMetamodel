@@ -1,12 +1,37 @@
-entities: # Сущности расширенной метамодели
-  # Бизнес-сущности
-  dictionaries:               # Секция, где будет описываться объекты сущности "взаимодействие". Обязательно.
-    title: Справочники   # Название сущности. Обязательно.
-    description: >          # Описание сущности текст или ссылка на документ. Необязательно.
-        Справочники для хранения различной статической информации используемой внутри DocHub
+entities: # Сущности расширенной метамодели  
+  sweaf.ia.dictionaries:
+    title: Модель управления справочной информацией
+    description: >
+        При помощи данной сущности описываются справочники для хранения различной статической информации используемой внутри DocHub
+    schema:
+      type: object
+      patternProperties:
+        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+          type: object
+          properties:
+            title:
+              title: Наименование справочника
+              type: string
+            description:
+              title: Физический смысл справочника
+              type: string
+            parameters:
+              title: Список реквизитов справочника
+              type: array
+              items:
+                type: string            
+          required:
+            - title
+            - description            
+    objects:
+      dictionary:
+        route: "/"
+        title: Справочник
+        symbol: "do"
+
     menu: >
         (
-            $dictionaries := $.dictionaries;
+            $dictionaries := $."sweaf.ia.dictionaries";
             $makeLocation := function($id) {(
                 $arrleft := function($arr ,$count) {
                     $map($arr, function($v, $i) {
@@ -21,12 +46,12 @@ entities: # Сущности расширенной метамодели
 
             $append([{
                 "icon": *.icon,
-                "link": "entities/dictionaries/tree",
+                "link": "entities/sweaf.ia.dictionaries/tree",
                 "location": "Справочники"
             }],
-                [$.dictionaries.$spread().{
+                [$."sweaf.ia.dictionaries".$spread().{
                     "icon": *.icon,                                             /* Получаем иконку */
-                    "link": "entities/dictionaries/" & (($.*.presentation) ? $.*.presentation : "dictionary_card") & "?id=" & $keys()[0],     /* Формируем ссылку на бланк документ */
+                    "link": "entities/sweaf.ia.dictionaries/" & (($.*.presentation) ? $.*.presentation : "dictionary_card") & "?id=" & $keys()[0],     /* Формируем ссылку на бланк документ */
                     "location": $makeLocation($keys()[0]),                      /* Формируем расположение в меню */
                     "order": *.order
                 }][location]
@@ -45,7 +70,7 @@ entities: # Сущности расширенной метамодели
                         $i <= $count ? $v
                     })
                 };
-                $dictionaries := $.dictionaries;
+                $dictionaries := $."sweaf.ia.dictionaries";
                 [$dictionaries.$spread().($merge([{"id" : $keys()[0]}, $.*]))^(id).(
                     $prev_nodes := $split($get("rpev-id"), ".");
                     $prev_level := $count($prev_nodes);
@@ -60,7 +85,7 @@ entities: # Сущности расширенной метамодели
                                 "id": $id,
                                 "level": $pad("", $i + 2, "*"),
                                 "title": $dictionary ? $dictionary.title : $id,
-                                "link": "/entities/dictionaries/" & $presentation & "?id=" & $id
+                                "link": "/entities/sweaf.ia.dictionaries/" & $presentation & "?id=" & $id
                             }
                         );
                     )});
@@ -74,23 +99,15 @@ entities: # Сущности расширенной метамодели
         template: templates/dictionary_card.md
         source: >
             (
-                $dictionaries := [$.dictionaries.$spread().$merge([$.*, {"id": $keys($)}])];
+                $dictionaries := [$."sweaf.ia.dictionaries".$spread().$merge([$.*, {"id": $keys($)}])];
                 $dictionaries [id=$params.id];
-            )
-      dictionary_card_brief:
-        type: markdown
-        template: templates/dictionary_card_brief.md
-        source: >
-            (
-                $dictionaries := [$.dictionaries.$spread().$merge([$.*, {"id": $keys($)}])];
-                $dictionaries [id=$params.id];
-            )            
+            )     
       critical_levels:
         type: upload
         title: Критичность системы
         source: >
           (
-            $.dictionaries."settings.critical_level".parameters.{
+            $."sweaf.ia.dictionaries"."settings.critical_level".parameters.{
               "guid": guid,
               "title": title,
               "description": description
@@ -101,7 +118,7 @@ entities: # Сущности расширенной метамодели
         title: Статус системы
         source: >
           (
-            $.dictionaries."settings.system_status".parameters.{
+            $."sweaf.ia.dictionaries"."settings.system_status".parameters.{
               "guid": guid,
               "title": title,
               "description": description

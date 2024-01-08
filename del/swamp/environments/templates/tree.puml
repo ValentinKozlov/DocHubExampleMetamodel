@@ -1,6 +1,0 @@
-@startwbs
-* Среды ГК Болото
-{{#.}}
-{{level}} [[{{&link}} {{title}}]]
-{{/.}}
-@endwbs
