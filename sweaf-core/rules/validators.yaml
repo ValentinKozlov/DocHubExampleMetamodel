@@ -21,10 +21,9 @@ rules:
               };
           )[$ and $not($exists($match(componentID,/(^\*)*\*(^\*)*/))) and $not($exists($lookup($MANIFEST.components, componentID)))]
         ).{
-            "uid": "$dh-mm-nfc-" & contextID & "-" & componentID,
-            "correction": "Определите компонент или удалите ссылку на него в контексте",
-            "description": "Возможно компонент [" & componentID & "] не описан или описан в подключаемой 
-            кодовой базе архитектуры, которая сейчас недоступна.",
+            "uid": "[$dh-mm-nfc] " & contextID & " | " & componentID,
+            "correction": "Укажите компонент [" & componentID & "] корректно или удалите ссылку на него в контексте [" & contextID & "]",
+            "description": "Возможно компонент [" & componentID & "] описан некорректно в контексте [" & contextID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",            
             "location": "/architect/contexts/" & contextID
         }])
     dochub.metamodel.contexts.outof:
@@ -34,16 +33,17 @@ rules:
           $MANIFEST := $;
           $USED := $distinct(contexts.*.components);
           [components.$spread().(
-              $ID := $keys()[0];
+              $componentID := $keys()[0];
               {
-                  "id" : $ID,
-                  "mask" : $USED[$wcard($ID, $)]
+                  "id" : $componentID,
+                  "mask" : $USED[$wcard($componentID, $)],
+                  "entity" : *.entity
               }
-          )[$not($exists(mask))].{
-            "uid": "$dh-mm-ofb-" & id,
+          )[$not($exists(mask)) and $not(entity in ["unit", "person"])].{
+            "uid": "$dh-mm-ofb-" & componentID,
             "correction": "Добавьте компонент в контекст",
             "description": "Предполагается, что компонент не включенный в контекст не учтен.",
-            "location": "/architect/components/" & id
+            "location": "/architect/components/" & componentID
           }]
         )
     dochub.metamodel.components:
@@ -62,11 +62,10 @@ rules:
               };
           )[$ and $not($exists($lookup($MANIFEST.aspects, aspectID)))]
         ).{
-            "uid": "$dh-mm-nfa-" & contextID & "-" & componentID,
-            "correction": "Определите аспект или удалите ссылку на него",
-            "description": "Возможно аспект [" & aspectID & "] не описан или описан в подключаемой 
-            кодовой базе архитектуры, которая сейчас недоступна.",
-            "location": "/architect/spects/" & aspectID
+            "uid": "[$dh-mm-nfa] " & componentID & " | " & aspectID,
+            "correction": "Укажите аспект [" & aspectID & "] корректно или удалите ссылку на него в компоненте [" & componentID & "]",
+            "description": "Возможно аспект [" & aspectID & "] описан некорректно в компоненте [" & componentID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
+            "location": "/architect/aspects/" & aspectID
         }])
     dochub.metamodel.components.no_define_parent:
       title: Компонент верхнего уровня не определен
@@ -81,12 +80,11 @@ rules:
                 )
             };
 
-            $MANIFEST := $;
-
+            $MANIFEST := $;            
             [[$distinct(components.$spread().(
                 $ens($keys()[0])
-            ))[$not($exists($lookup($MANIFEST.components, $)))]].{
-                "uid": "$dh-mm-cmp-ndp-" & $,
+            ))[$not($exists($lookup($MANIFEST.components, $))) and $not($exists($lookup($MANIFEST.tactical_units, $)))]].{
+                "uid": "[$dh-mm-cmp-ndp] " & $,
                 "correction": "Опишите компонент с идентификатором [" & $ & "]",
                 "description": "Предполагается, что для всех уровней компоненты определены."
             }]
@@ -105,10 +103,9 @@ rules:
                     "linkID": id
                 }
             )[$ and $not($exists($lookup($MANIFEST.components, linkID)))]].{
-                "uid": "$dh-mm-cmp-lnk-nf-" & ownerID & "-" & linkID,
-                "correction": "Определите компонент [" & linkID & "] или удалите ссылку на него",
-                "description": "Возможно компонент [" & linkID & "] не описан или описан в подключаемой 
-                кодовой базе архитектуры, которая сейчас недоступна.",
+                "uid": "[$dh-mm-cmp-lnk-nf] " & ownerID & " | " & linkID,
+                "correction": "Укажите компонент [" & linkID & "] корректно или удалите ссылку на него у компонента [" & ownerID & "]",
+                "description": "Возможно компонент [" & linkID & "] описан некорректно в компоненте [" & ownerID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
                 "location": "/architect/components/" & ownerID
             }]
         )
@@ -132,7 +129,7 @@ rules:
             [[$distinct(aspects.$spread().(
                 $ens($keys()[0])
             ))[$not($exists($lookup($MANIFEST.aspects, $)))]].{
-                "uid": "$dh-mm-apt-ndp-" & $,
+                "uid": "[$dh-mm-apt-ndp] " & $,
                 "correction": "Опишите аспект с идентификатором [" & $ & "]",
                 "description": "Предполагается, что для всех уровней аспекты определены."
             }]

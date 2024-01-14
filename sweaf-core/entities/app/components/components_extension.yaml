@@ -12,7 +12,7 @@ entities:
             # Идентификатор презентации, которая будет использоваться в виджете
             presentation: sys_responsible_employees
             # В params можно передать дополнительные параметры
-            # презентации, которые будут доступны в перемнной $params
+            # презентации, которые будут доступны в переменой $params
             #params:
             #  param1: Значение параметра 1
             #  param2: Значение параметра 2
@@ -22,22 +22,6 @@ entities:
             # = - Растянуть на 100%
             align: "<"
             order: 1000
-            style:
-              border: false
-              margin: 4px
-          sys_health_indicators:
-            # title: Индикаторы здоровья
-            presentation: sys_health_indicators
-            align: ">"
-            order: 1000
-            style:
-              border: false
-              margin: 4px
-          aerolite:
-            title: Аэродром
-            presentation: aerolite
-            align: "="
-            order: 3000
             style:
               border: false
               margin: 4px
@@ -84,14 +68,6 @@ entities:
           outside_links:
             title: Кто зависит от этого компонента
             presentation: outside_links
-            align: ">"
-            order: 1000
-            style:
-              border: false
-              margin: 4px
-          feedback_widget:
-            title: Опросники
-            presentation: feedback_widget
             align: ">"
             order: 1000
             style:
@@ -350,59 +326,6 @@ entities:
             );
 
           )
-      aerolite:
-        type: aerolite
-        params:
-          type: object
-          properties:
-            component:
-              title: Идентификатор компонента
-              type: string
-          required:
-            - component
-        source: >
-          (
-            $id := $lookup($.components, $params.component).guid
-          )
-      sys_health_indicators: # Идентификатор представления
-        # Контракт по параметрам представления в формате JSONSchema
-        params:
-          type: object
-          properties:
-            component:
-              title: Идентификатор компонента
-              type: string
-          required:
-            - component
-        # Тип документа шаблона
-        type: rating
-        source: >
-          (
-            $system_id := $params.component;            
-            $indicators := $."sweaf.ia.dictionaries"."system_health.indicators".parameters;
-            $fitness := $."sweaf.ia.dictionaries"."system_health.fitness".parameters;
-            $ratings := $."sweaf.ia.dictionaries"."system_health.ratings".parameters;
-
-            $system := $lookup($.components, $system_id);
-            $system_indicators := $eval($.functions.get_system_indicators, {'system': $system, 'dictionaries': $."sweaf.ia.dictionaries"});
-
-            ($system_indicators) ? (
-              $rate := $eval($.functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $."sweaf.ia.dictionaries"});
-              {
-                  'rating': $rate,
-                  'indicators': $system_indicators.(
-                    $indicator_id := $.id;
-                    $indicator_fit := $.fit;
-                    {
-                        'title': $indicators[name=$indicator_id].title,
-                        'description': $indicators[name=$indicator_id].description,
-                        'fit': $fitness[name=$indicator_fit].title,
-                        'comment': comment
-                    }
-                  )
-              }
-            );
-          )
 
       sys_problems:
         params:
@@ -479,69 +402,4 @@ entities:
                 "link": "/architect/components/" & $id
               }
             ))^(id)]
-          )
-
-      services:
-        type: upload
-        title: Бизнес ИТ услуги
-        source: >
-          (
-            $manifest := $;
-            $systems := $manifest.components;
-            $dictionaries := $manifest."sweaf.ia.dictionaries";
-            $functions := $manifest.functions;
-            $accounts := $dictionaries."accounts".parameters;
-            $tactical_units := $manifest.tactical_units;
-            $units := $sift($.components, function($v) { $v.entity = "unit" });
-
-            [$systems.$spread().(
-              $system_id := $keys()[0];
-              $bu_id := $split($system_id, ".", 2) ~> $join('.');          
-              $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
-              $bu_block := $systems_parameters.tactical_unit;
-              $.*.(
-                {
-                  "entity": entity,
-                  "id": $system_id,
-                  "guid": guid,
-                  "title": title,
-                  "description": description,
-                  "short_description": short_description,
-                  "system_status": $filter($statuses, function ($v) { $v.name = system_status }).guid,
-                  "critical_level": $filter($criticaity, function ($v) { $v.name = critical_level }).guid,
-                  "budget_holder": $eval($functions.get_account,{"username": $systems_parameters.budget_holder, "accounts": $accounts}).title,
-                  "application_owner": $eval($functions.get_account,{"username": $systems_parameters.application_owner, "accounts": $accounts}).title,
-                  "business_owners": $systems_parameters.business_owners.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title]),
-                  "unit": $lookup($units, $bu_id).guid
-                }
-              )[entity="system"][guid];
-            )]^(id)
-          )
-
-      units:
-        type: upload
-        title: Бизнес-юниты
-        source: >
-          (
-            $.components.$sift(function($v) { $v.entity = "unit" }).*.(
-              {
-                "guid": guid,
-                "title": title
-              }
-            );
-          )
-      feedback_widget:
-        type: feedback_widget
-        title: Опросники
-        params:
-          type: object
-          properties:
-            component:
-              title: Идентификатор компонента
-              type: string
-          required:
-            - component
-        source: >
-          (
-            $lookup($.components, $params.component)
           )

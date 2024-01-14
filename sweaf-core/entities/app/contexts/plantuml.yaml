@@ -25,37 +25,54 @@ entities:
           
           $join($map($areas, function($domain, $index) {(
               $result := "";
+              /*Если в системе указан tactical_unit, то была добавлена еще одна группировка после БЮ*/
+              /*и в этом случае нельзя найти систему по её домену, поэтому далее приходится возвращать оригинальный идентификатор, чтобы получить components*/
+              $tu := $split($domain,".");
+              $domains_number := $count($tu);
+
+              /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
+              /*чем 2 домена, то берем его целиком. Например, для идентификатора samolet.bu_csp берем его, а для samolet.bu_csp.platform10d берем platform10d */
+              $tactical_unit := $lookup($manifest.tactical_units, $domains_number > 2 ? $tu[$domains_number-1] : $domain);
               $component := $lookup($components, $domain);
-              $originComponent := $lookup($manifest.components, $domain);
-              $context := $lookup($manifest.contexts, $domain);
-        
+              $context := $lookup($manifest.contexts, $domain);              
+              
+              /* Возвращение оригинального идентификатора происходит только с 3-го домена: компания.бизнес-юнит.имя добавленного кластера */
+              $originDomain := $domains_number > 3 ? ($component ? $domain : $tu[2] ? $replace($domain, "." & $tu[2], "")) : $domain;
+              
+              $domain_plantuml := $replace($originDomain, '-', '_');
+              $component := $component ? $component : $lookup($components, $originDomain);
+              $originComponent := $lookup($manifest.components, $originDomain);
+              /*"Домен: " & $domain & "| Оригинальный домен: " & $originDomain & "| Домен plantuml: " & $domain_plantuml*/
+              
               /* Определяем является ли элемент областью */
               $isAreaBegin := $areas[$index + 1].$substring(0, $domain.$length() + 1) = $domain & ".";
-        
               $result := $result & ($isAreaBegin ? (
-                  $title := $originComponent.title ? $originComponent.title : (
-                      $context.title ? $context.title : $domain
-                  );
-                      "$Region("
-                      & $domain
+                  $title := $tactical_unit.title ? $tactical_unit.title : (
+                    $originComponent.title ? $originComponent.title : (
+                      $context.title ? $context.title : $originDomain
+                  ));
+                  "$Region("
+                      & $domain_plantuml
                       & ",\"[[/architect/components/"
-                      & $domain
+                      & $domain_plantuml
                       & " " & $title
                       & "]]\", ) {\n";
               ) : "");
-        
+
               /* Если домен является компонентом, выводим его на диаграмму */
               $result := $result & (
                   $not($isAreaBegin) and $component ? (
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
-                      $color := $domain = $focusId ? "#FFBBCC" : "";
+                      $system_rate := $eval($manifest.functions.get_systems_total_rating, {'system_id': $originDomain,
+                        'components': $manifest.components, 'dictionaries': $manifest."sweaf.ia.dictionaries", 'functions': $manifest.functions});
+                      $color := $originDomain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
                       $result := "$Entity(\"" 
                           & $entity 
                           & "\", \""
-                          & "[[/architect/components/" & $domain & " " & $component.title & "]]"
+                          & "[[/architect/components/" & $domain_plantuml & " " & $component.title & "]]"
                           & "\", " 
-                          & $domain                          
+                          & $domain_plantuml                          
                           & ", \""
                           & $component.type
                           & "\", \""
@@ -87,7 +104,7 @@ entities:
                           $result := $result & "$EntityExpand(\""
                           & $entity
                           & "\", "
-                          & $domain
+                          & $domain_plantuml
                           & ")\n";
         
                       /* Закрываем секцию компонента */
@@ -97,7 +114,6 @@ entities:
                           & "\")\n";
                   ): "";
               );
-        
               /* Определяем, что область нужно закрыть*/
               $result & (
                 $count($split($domain, ".")) > 1 
@@ -106,6 +122,7 @@ entities:
                 $m := $areas[$index + 1] ? 0 : -1;
                 $reduce([0..($count($split($domain, ".")) - $count($split($areas[$index + 1], ".")) + $m)], $stopBracketsCount);
               ) : "");
+
           )}));
         )
       # Генерирует PlantUML код связей для диаграммы компонентов
@@ -114,7 +131,7 @@ entities:
       makePumlComponentsLinks: >
         (
           $join(links.(
-            from & " " & direction & " " & to & (title ? ": " & title : "") & "\n"
+            $replace(from, '-', '_') & " " & direction & " " & $replace(to, '-', '_') & (title ? ": " & title : "") & "\n"
           ))
         )
     # Представления контекстов в PlantUML
@@ -128,11 +145,11 @@ entities:
             "dh-context-id":
               title: Идентификатор контекста
               type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
             "dh-focus-id":
               title: Идентификатор требующий подсветку
               type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
           required:
             - dh-context-id
         type: plantuml
@@ -169,6 +186,11 @@ entities:
           (
             $id := $params."dh-context-id";
             $focusId := $params."dh-focus-id";
+
+            /* Для теста */
+            /*$id := "arch.bu_moscow.pal1_sdevelopment";*/
+            /*$params := {};*/
+
             /* Получаем доступ к оригинальным данным */
             $manifest := _origin ? _origin : $;
             /* Получаем контекст */
@@ -177,6 +199,7 @@ entities:
             $manifest := _source ? _source : $;
           
             $isExtraLinks := $not($string($context."extra-links") = "false");
+            $isAddGroup := $context."add-group";
           
             /* Получаем коллекцию дефолтных вспомогательных функций */
             $defFunctions := $manifest.entities.contexts.api;
@@ -209,7 +232,8 @@ entities:
 
             /* Генерируем области */
             $areas := $eval($defFunctions.fetchAreas, {
-              "components": $components
+              "components": $components,
+              "add-group": $isAddGroup
             });
           
             /* Генерируем PlantUML диаграмму компонентов */

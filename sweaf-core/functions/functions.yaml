@@ -178,7 +178,7 @@ functions:
     (
       $system_id := $.system_id;
       $components := $.components;
-      $dictionaries := $."sweaf.ia.dictionaries";
+      $dictionaries := $.dictionaries;
       $functions := $.functions;
       $system := $lookup($components, $system_id);
       $system.entity = "system"
@@ -193,9 +193,9 @@ functions:
   get_indicators_total_rating: >
     (
       $system_indicators := $.indicators;
-      $INDICATORS := $."sweaf.ia.dictionaries"."system_health.indicators".parameters;
-      $FITNESS := $."sweaf.ia.dictionaries"."system_health.fitness".parameters;
-      $RATINGS := $."sweaf.ia.dictionaries"."system_health.ratings".parameters;
+      $INDICATORS := $.dictionaries."system_health.indicators".parameters;
+      $FITNESS := $.dictionaries."system_health.fitness".parameters;
+      $RATINGS := $.dictionaries."system_health.ratings".parameters;
       $MAX_INDICATOR_WEIGHT := $max($INDICATORS.weight);
       $MIN_FIT := $sort($FITNESS, function ($l, $r) { $l.rate > $r.rate })[0].name;
 
@@ -232,7 +232,7 @@ functions:
   get_system_indicators: >
     (
       $system := $.system;
-      $INDICATORS := $filter($."sweaf.ia.dictionaries"."system_health.indicators".parameters, function ($v) { $v.requirements ? $eval($v.requirements, $system) : true });
+      $INDICATORS := $filter($.dictionaries."system_health.indicators".parameters, function ($v) { $v.requirements ? $eval($v.requirements, $system) : true });
       $is_external := $contains($system.id, /^world\./i);
 
       $system_indicators := 

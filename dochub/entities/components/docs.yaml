@@ -16,10 +16,10 @@ entities:
             # Расположение слева
             align: "<"
             # Порядок расположения
-            order: 1200
+            order: 20
             # Определяем стиль виджета
             style:
-              border: false
+              border: true
               padding: 12px
               margin: 4px
       docs:

@@ -1,0 +1,10 @@
+docs:
+  test:
+    location: test
+    type: plantuml
+    source: >
+      (
+        $
+      )
+    template: test.puml
+
