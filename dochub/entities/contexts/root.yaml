@@ -2,5 +2,4 @@ imports:
   - base.yaml
   - plantuml.yaml
   - smartants.yaml
-  - c4_context.yaml
   - tree.yaml

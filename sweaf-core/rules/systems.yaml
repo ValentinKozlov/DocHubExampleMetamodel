@@ -1,0 +1,58 @@
+rules:
+  validators:
+    swamp.systems:
+      title: Контроль систем
+    swamp.systems.guid:
+      title: Контроль guid
+    swamp.systems.guid.empty:
+      title: У системы не указан guid
+      source: >
+        (
+          $manifest := $;
+
+          [$manifest.components.$spread().(
+              $system_id := $keys()[0];
+              $.*.{
+                  "system_id": $system_id,
+                  "entity": entity,
+                  "guid": guid  ? guid : ''
+              }
+          )[entity="system" and ($not(guid) or $length(guid) = 0)].(
+              {
+                  "uid": "[$smlt-guid-empty] " & system_id,
+                  "location": "/architect/components/" & system_id,
+                  "correction": "Для системы [" & system_id & "] необходимо сгенерировать guid",
+                  "description": "У каждой системы должен быть уникальный идентификатор в поле guid"
+              }
+          )];
+        )
+    swamp.systems.guid.notunique:
+      title: Совпадение guid систем
+      source: >
+        (
+          $manifest := $;
+
+          $systems := $manifest.components.$spread().(
+            $system_id := $keys()[0];
+            $.*.{
+              "id": $system_id,
+              "entity": entity,
+              "guid": guid  ? guid : ''
+            }
+          )[entity="system" and guid and $length(guid) != 0];
+
+          [$systems{guid: $count(guid)}.$spread().(
+            $guid := $keys()[0];
+            $.*.{
+              "guid": $guid,
+              "count": $[$guid]
+            }
+          )[count>1].(
+            {
+              "uid": "[$smlt-guid-not-unique] " & guid,
+              "location": "Нет",
+              "correction": "Найдено совпадение guid для [" & count & "] систем. Найдите все системы с одинаковыми guid и сгенерируйте новые.",
+              "description": "Каждая система должна иметь уникальный идентификатор в поле guid."
+            }
+          )];
+        )

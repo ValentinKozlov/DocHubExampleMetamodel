@@ -1,0 +1,7 @@
+imports:  
+  - aspects/root.yaml
+  - components/root.yaml
+  - contexts/root.yaml
+  - documents/root.yaml
+  - libraries/root.yaml
+  - sequence_diagrams/root.yaml

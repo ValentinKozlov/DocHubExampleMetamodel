@@ -1,0 +1,88 @@
+rules:
+  validators:
+    swamp.accounts:
+      title: Контроль аккаунтов
+    swamp.accounts.null:
+      title: Не заполнена одна из ключевых ролей системы      
+      source: >
+        (
+          $manifest := $;
+          $systems := $manifest.components;
+          $dictionaries := $manifest."sweaf.ia.dictionaries";
+          $functions := $manifest.functions;
+          $tactical_units := $manifest.tactical_units;
+          
+          $matcher := /^[a-z]/;
+          $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+
+          [$systems.$spread().(
+            $system_id := $keys()[0];      
+            $system := $.*;
+            $system.entity = "system" ?
+            (
+              $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+              $scan_fields.(
+                $param := $;
+                $val := $lookup($systems_parameters, $param); /* Внутри конкретной сущности берем значение конкретного реквизита для каждого поля указанного в $scan_fields*/
+                $exists($matcher($val))=false
+                ?
+                  {
+                    "uid": "[$smlt-accounts-null] " & $system_id & " | " & $param,
+                    "location": "/architect/components/" & $system_id,
+                    "correction": "Укажите значение поля [" & $param & "] в виде username, текущее значение - [" & $val & "]",
+                    "description": "Система должны иметь сведения: [" & $dictionaries."settings.contacts".parameters[name=$param].title & "]"
+                  }
+              );
+            )
+          )];
+        )
+
+    swamp.accounts.nousername:
+      title: Не корректно заполнена одна из ключевых ролей системы      
+      source: >
+        (
+          $manifest := $;
+          $systems := $manifest.components;
+          $dictionaries := $manifest."sweaf.ia.dictionaries";
+          $functions := $manifest.functions;
+          $tactical_units := $manifest.tactical_units;
+
+          /* Пишем функцию для получения списка ошибок */
+          $errors_list := function($field, $manifest, $system_id, $param) {(
+            $dictionaries := $manifest."sweaf.ia.dictionaries";
+            $functions := $manifest.functions;
+            $eval($functions.get_account,{"username": $field, "accounts": $dictionaries."accounts".parameters}).error = true ?
+              (              
+                {
+                  "uid": "[$smlt-accounts-null] " & $system_id & " | " & $param,
+                  "location": "/architect/components/" & $system_id,
+                  "correction": "Ошибочно указано значение поля [" & $param & "]. Возможно сотрудник уже уволился. Значение должно быть виде username, текущее значение - [" & $field & "]",
+                  "description": "Система должны иметь сведения : [" & $dictionaries."settings.contacts".parameters[name=$param].title & "]"
+                };              
+              )
+          )};      
+
+          $matcher := /^[a-z]/;
+          $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+
+          [$systems.$spread().(
+            $system_id := $keys()[0];      
+            $system := $.*;
+            $system.entity = "system" ?
+            (
+              $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+              $scan_fields.(
+                $val := $lookup($systems_parameters, $); /* Внутри конкретной сущности берем значение конкретного реквизита для каждого поля указанного в $scan_fields*/        
+                $matcher($val) ? 
+                ( 
+                  $param := $; 
+                  $param = "business_owners"
+                  ?
+                    $val.([$errors_list($, $manifest, $system_id, $param)])
+                  :                    
+                    [$errors_list($val, $manifest, $system_id, $param)];
+                )
+              );
+            )
+          )];
+        )

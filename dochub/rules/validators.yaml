@@ -19,7 +19,7 @@ rules:
                 "contextID": $CONTEXT_ID,
                 "componentID": $
               };
-          )[$ and $not($substring(componentID, -2) = ".*") and $not($exists($lookup($MANIFEST.components, componentID)))]
+          )[$ and $not($exists($match(componentID,/(^\*)*\*(^\*)*/))) and $not($exists($lookup($MANIFEST.components, componentID)))]
         ).{
             "uid": "$dh-mm-nfc-" & contextID & "-" & componentID,
             "correction": "Определите компонент или удалите ссылку на него в контексте",

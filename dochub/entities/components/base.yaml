@@ -2,12 +2,14 @@
 entities:
   components:
     title: Компоненты
+    config:
+      root_menu: Архитектура  # Корневое меню представления компонентов
     description: >
       Архитектурные компоненты.
     schema:
       type: object
       patternProperties:
-        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$":
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -28,7 +30,7 @@ entities:
         # JSONata генератор символа в svg для представления в диаграммах. 
         #  $params.subject - передается объект рендеринга. Может быть не определен. В этом случае, необходимо вернуть неспецифичный (общий) символ объекта.
         #  $               - Data Lake архитектуры. Может быть не определен, если Data Lake недоступен.
-        symbol: >
+        symbol: >     
           (
             /* Обрабатываем входящие параметры */
             $manifest := $;
@@ -89,7 +91,7 @@ entities:
         [
           {
             "link": "/entities/components/tree",
-            "location": "Прикладная архитектура"
-          }          
+            "location": entities.components.config.root_menu
+          }
         ]
       )

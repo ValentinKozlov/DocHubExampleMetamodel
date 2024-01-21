@@ -7,7 +7,7 @@ entities:
     schema:
       type: object
       patternProperties:
-        "^[0-9a-zA-Z][a-zA-Z0-9_-]*(\\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$":
+        "^[0-9a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -25,7 +25,7 @@ entities:
               items:
                 type: string
                 title: Идентификатор компонента или маска
-                pattern: "^[0-9a-zA-Z][a-zA-Z0-9\\_]*(\\.([0-9a-zA-Z][a-zA-Z0-9\\_]*|\\*))*$"
+                pattern: "^[0-9a-zA-Z][a-zA-Z0-9\\_]*(\\.([a-zA-Z][a-zA-Z0-9\\_]*|\\*))*$"
             extra-links:
               title: Отображать компоненты ближайших связей
               type: boolean
@@ -65,7 +65,7 @@ entities:
               anyOf:
                 - type: string
                   title: Идентификатор dataset
-                  pattern: "^[0-9a-zA-Z][a-zA-Z0-9\_]*(\\.[0-9a-zA-Z][a-zA-Z0-9\\_]*)*$"
+                  pattern: "^[0-9a-zA-Z][a-zA-Z0-9\_]*(\\.[a-zA-Z][a-zA-Z0-9\\_]*)*$"
                 - type: string
                   title: JSONata запрос
                   pattern: "\\s*\\((.|\\s)*\\)\\s*"
@@ -74,22 +74,32 @@ entities:
       additionalProperties: false
     menu: >
       (
-          $presentation := entities.contexts.config.defaultPresentation;
-          [
-              contexts.$spread().(
-                  /* Если указана явно презентация, используем ее */
-                  $presentation := $.*.presentation ? *.presentation : $presentation;
-                  *.location ? {
-                      "location": "Прикладная архитектура/" & *.location,
-                      "link": "entities/contexts/" & $presentation & "?dh-context-id=" & $keys()[0]
-                  }
-              )
-          ]
+        $root_menu := entities.contexts.config.root_menu;
+        $presentation := entities.contexts.config.defaultPresentation;
+        $append([
+            {
+                "title": "Контексты",
+                "location": $root_menu,
+                "icon": 'location_searching',
+                "link": "entities/contexts/tree"
+            }
+          ],
+          contexts.$spread().(
+              /* Если указана явно презентация, используем ее */
+              $presentation := $.*.presentation ? *.presentation : $presentation;
+              *.location ? {
+                  "location": $root_menu & "/" & *.location,
+                  "link": "entities/contexts/" & $presentation & "?dh-context-id=" & $keys()[0]
+              }
+          )
+        );
       )
     # Предопределенные конфигурационные параметры для генерации контекстов
     config:
       # Идентификатор презентации по умолчанию
-      defaultPresentation: plantuml # plantuml / smartants / c4_context
+      defaultPresentation: plantuml # plantuml / smartants
+      # Размещение контекстов в меню
+      root_menu: Архитектура/Контексты    
     # Общие API функции для генерирования контекста
     api:
       # Возвращает компоненты входящие в контекст

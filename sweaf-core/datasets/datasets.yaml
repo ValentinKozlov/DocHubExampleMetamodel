@@ -1,0 +1,124 @@
+datasets:
+  # Получаем список систем с линками на карточку системы
+  swamp.dataset.systems_list:
+    source: >
+      (
+        $manifest := $;
+        $dictionaries := $manifest."sweaf.ia.dictionaries";
+        $functions := $manifest.functions;
+        $accounts := $dictionaries."accounts".parameters;
+        $technologies := $.technologies.items;
+        $components := $manifest.components.$sift(function($v) { $v.entity="system" });
+
+        [$components.$spread().(
+          $component_id := $keys()[0];
+          $bu_id := $split($component_id, ".", 2) ~> $join('.');
+          $bu_block := $split($component_id, ".", 3) ~> $join('.');
+          $.*.(
+            {
+              "id": $component_id,
+              "link_to_system": "/architect/components/" & $component_id,
+              "title": title,
+              "entity": entity,
+              "critical_level": critical_level,
+              "system_status": system_status,
+              "short_description": short_description,
+              "description": description,
+              "system_entities": "Ссылка",
+              "link_to_system_entities": "/entities/business_entities/business_entities_table_in_systems.filtered?system_id=" & $component_id,
+              "deployment_card": "Ссылка",
+              "link_to_deployment_card": "/entities/sweaf.ta.environments/deployment_card?id=" & $component_id,
+              "application_owner": $get_account_new(application_owner,$accounts).title,              
+              "business_owners": $.business_owners.([$get_account_new($,$accounts).title]),              
+              "architect": $get_account_new(architect,$accounts).title,              
+              "budget_holder": $get_account_new(budget_holder,$accounts).title,
+              "budget_holders_bu": $lookup($manifest.components, $get_account_new(budget_holder,$accounts).bu).title,
+              "owner_unit":  $bu_id ? $lookup($manifest.components, $bu_id).title : $bu_id,
+              "bu_block":  $lookup($manifest.components, $bu_block).bu_block,
+              "prod_url": $distinct(urls[id = "prod"].url),
+              "technologies": $map(technologies, function($tech, $i, $a){
+                  $filter($technologies.$spread(), function($v, $i, $a) {
+                      $tech in $v.*.aliases
+                  }).(
+                      $keys()[0]
+                  )
+              })
+            }
+          );
+        )]^(id)
+      )
+
+  # сделал копию в api, если именно тут не нужно - можно удалить
+  swamp.dataset.accounts:
+    source: >
+      (
+        $_manifest := $;
+        /* Делаем регулярку на выбор только латинских букв */
+        $matcher := /^[a-z]/;
+        /* Создаем массив со списком имен полей из которых будем выбирать логины */
+        $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+        /* Выбираем системы */
+        $system_accounts := $distinct($_manifest.components.*.(
+            $component := $; /* Получаем конкретную систему*/
+            $scan_fields.(
+                $lookup($component, $); /* Внутри конкретной системы берем значение конкретного реквизиты для каждого поля указанного в $scan_fields*/
+            )[$matcher($)]; /*Каждое полученное значение свяряем с регуляркой и лишнее игнорируем*/
+        ))[$];/*В предыдущей выборке будут nill-ы, для того чтобы избавиться от них делаем фильтр*/
+
+        /* Повторяем предыдущий алгоритм для версий архитектуры */
+        $arch_versions_accounts := $distinct($_manifest.arch_versions.*.сhanged_data.*.(
+            $component := $;
+            $scan_fields.(
+                $lookup($component, $);
+            )[$matcher($)];
+        ))[$];
+
+        /*Соединяем два полученных выше массива*/
+        $all_accounts := $distinct($append($system_accounts, $arch_versions_accounts ));
+      )
+
+  swamp.dataset.repositories:
+    source: >
+      (
+        $systems := $merge($.components.$spread().(
+          $_id := $keys()[0];
+          $.*[repositories].(
+            $title := title;
+            repositories.({
+              $: {"id": $_id, "title": $title}
+            })
+          );
+        ));
+
+        repositories.$spread().(
+          $_id := $keys()[0];
+          $repositories := $.*.(
+            $system := $lookup($systems, $_id);
+            $ ~> | $ | {"id": $_id, "system_title": $system.title, "link_to_system": $system.id ? "/architect/components/" & $system.id} |;
+          );
+        )
+      )
+
+  swamp.dataset.technologies_list:
+    source: >
+      (
+        $ALL := $distinct($.components.*.technologies);
+
+        $GOOD := $.technologies.items.*.aliases;
+
+        $BAD_RESULT := $ALL[$not($ in $GOOD)].(
+            {"title": $, "link": "", "section": "", "status": "Не определён", "aliases": ""}
+        );
+
+        $GOOD_RESULT := $.technologies.(
+          $SECTIONS := $.sections;
+          $.items.$spread().(
+            $_id := $keys()[0];
+            $.*.(
+              {"title": $_id, "link": $.link, "section": $lookup($SECTIONS, $.section).title, "status": $.status, "aliases": $join($.aliases, ", ")}
+            )
+          );
+        );
+        $append($GOOD_RESULT, $BAD_RESULT);
+      )
+

@@ -1,0 +1,353 @@
+functions:
+  # Новый вариант функций
+  get_account_new:
+    title: Получить данные аккаунта по переданному логину
+    # Входящие параметры
+    params:      
+      - alias: username        
+        title: Логин пользователя Самолет
+        required: true
+      - alias: accounts
+        type: array
+        title: Список учетных записей
+        required: true
+    code: >
+      (
+        $username := username;
+        $accounts := accounts;
+        $acc_link := "https://team.swampgroup.ru/profile/" & $username;
+        $type($username)="string"
+        ? (
+            $full_account := $accounts[name=$username];
+            $count($full_account) = 1
+            ?   (
+                $type($full_account.title)="string"
+                ?
+                $merge([$full_account, {"error" : false, "acc_link": $acc_link}])
+                :
+                {
+                    "name": $username,
+                    "title": $username,
+                    "bu": "Наименование БЮ неопределенно",
+                    "error" : true
+                };
+                )
+            : $count($full_account) > 1
+              ?
+                $full_account.(
+                  $type($.bu) = "string"
+                  ? $merge([$, {"error" : false, "acc_link": $acc_link}])
+                )
+              :
+                {
+                  "name": "Аккаунт не указан",
+                  "title": "Аккаунта " & $username & " нет в справочнике DocHub",
+                  "bu": "Наименование БЮ неопределенно",
+                  "error" : true
+                };
+          )
+        :
+          {
+              "name": "Аккаунт не указан",
+              "title": "Аккаунт не указан",
+              "bu": "Наименование БЮ неопределенно",
+              "error" : true
+          };
+      )
+  
+  # Старый вариант функций
+  # $eval($FUNCTIONS.get_account,{"username": "v.lebedev", "accounts": $DICTIONARIES."accounts".parameters})
+  get_account: >
+    (
+      $username := $.username;
+      $accounts := $.accounts;
+      $acc_link := "https://team.swampgroup.ru/profile/" & $username;
+      $type($username)="string"
+      ?   (
+          $full_account := $accounts[name=$username];
+          $count($full_account) = 1
+          ?   (
+              $type($full_account.title)="string"
+              ?
+              $merge([$full_account, {"error" : false, "acc_link": $acc_link}])
+              :
+              {
+                  "name": $username,
+                  "title": $username,
+                  "bu": "Наименование БЮ неопределенно",
+                  "error" : true
+              };
+              )
+          : $count($full_account) > 1
+            ?
+              $full_account.(
+                $type($.bu) = "string"
+                ? $merge([$, {"error" : false, "acc_link": $acc_link}])
+              )
+            :
+              {
+                "name": $username,
+                "title": "Аккаунт некорректный",
+                "bu": "Наименование БЮ неопределенно",
+                "error" : true
+              };
+          )
+      :
+          {
+              "name": $username,
+              "title": "Аккаунт некорректный",
+              "bu": "Наименование БЮ неопределенно",
+              "error" : true
+          };
+    )
+  
+  # Примеры
+  # $eval($functions.get_resources_view,{"context": $, "output_type": "short"})
+  # $eval($functions.get_resources_view,{"context": $, "output_type": "full"})
+  get_resources_view: >
+    (
+      $context := $.context;
+      $output_type := $.output_type;
+      $output_type = "short"
+      ? "RAM: " & $context.ram & " Gb" & "\n"
+        & "CPU: " & $context.cpu & " Core" & "\n"
+        & ($context.storage_size > 0
+        ? "Storage: " & $context.storage_size & " Gb")
+      : "RAM: " & $context.ram & " Gb" & "\n"
+        & ($context.cpu_type != ""
+          ? "CPU type: " & $context.cpu_type & "\n" : "")
+        & "CPU: " & $context.cpu & " Core" & "\n"
+        & ($context.storage_size > 0 
+          ? "Storage type: " & $context.storage_type & "\n"
+          & "Storage: " & $context.storage_size & " Gb" : "")
+    )
+  
+  # Получить ресурсы по системе
+  get_resources: >
+    (
+      /*Проверяем входящие параметры*/
+      $system_id := $.system_id;
+      $systems := $.systems;
+      $system := $lookup($systems, $system_id);
+      $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");      
+      
+      /*Получаем информацию по DU*/
+      $comp_pattern := $eval("/^" & $system_id & "./");
+      $comp_nodes := $systems.$sift(function($v, $k) {$k ~> $comp_pattern}).$spread().(
+          $component_id := $keys()[0];			
+          $component := $.*;
+          $title := $system.title;
+          $du := $component.deployment_units.$spread().(			
+          $du_id := $keys()[0];			
+          $.*.(
+            /*Выносим расчеты за алгоритм формирования JSON, так как внутри типы определяются некорректно */
+            $multiplier := $number(multiplier) > 0 ? $number(multiplier) : 1;
+            $cpu := $number(cpu);
+            $total_cpu := $cpu * $multiplier;
+            $ram := $number(ram);
+            $total_ram := $ram * $multiplier;
+            $namespace := $split($system_id, ".");
+            $namespace := $namespace[$count($namespace)-1];
+            {
+              "id": $du_id & "." & $component_id,
+              "du_id": $du_id,
+              "system_id": $system_id ,
+              "namespace": $namespace,            
+              "component_id":  $component_id,            
+              "component_title": $component.title,
+              "component_entity": $component.entity,
+              "resource_type": resource_type,
+              "multiplier": $multiplier,
+              "cpu_type": cpu_type,              
+              "cpu": $cpu,
+              "total_cpu": $total_cpu,
+              "ram": $ram,
+              "total_ram": $total_ram,
+              "storage_type": storage_type,
+              "storage_size": storage_size,
+              "total_storage_size": storage_size * multiplier,
+              "link_to_component":  "/architect/components/" & $component_id               
+            };                
+          );
+        );		
+      );
+    )
+
+  # Получение общего рейтинга системы
+  get_systems_total_rating: >
+    (
+      $system_id := $.system_id;
+      $components := $.components;
+      $dictionaries := $.dictionaries;
+      $functions := $.functions;
+      $system := $lookup($components, $system_id);
+      $system.entity = "system"
+      ? (
+        $system_indicators := $eval($functions.get_system_indicators, {'system': $system, 'dictionaries': $dictionaries});
+        $rate := $eval($functions.get_indicators_total_rating, {'indicators': $system_indicators, 'dictionaries': $dictionaries});
+        )
+      : ""
+    )
+
+  # Расчет общего рейтинга системы на основании оценок индикаторов здоровья
+  get_indicators_total_rating: >
+    (
+      $system_indicators := $.indicators;
+      $indicators := $.dictionaries."system_health.indicators".parameters;
+      $fitness := $.dictionaries."system_health.fitness".parameters;
+      $ratings := $.dictionaries."system_health.ratings".parameters;
+      $max_indicator_weight := $max($indicators.weight);
+      $min_fit := $sort($fitness, function ($l, $r) { $l.rate > $r.rate })[0].name;
+
+      $normalized_system_indicators := $map(
+        $system_indicators,
+        function($indicator, $k) {
+          {
+              'id': $indicator.id,
+              'fit': 1 - (1 - $fitness[name=$indicator.fit].rate) * $indicators[name=$indicator.id].weight / $max_indicator_weight
+          }
+        }
+      );
+
+      $system_average_fit := 
+        $count(
+          $filter(
+            $system_indicators, 
+            function ($indicator) { $indicator.fit = $min_fit and $indicators[name=$indicator.id].is_critical }
+          )
+        ) > 0 
+          ? 0
+          : $average($normalized_system_indicators.fit);
+
+      $rate := $reduce(
+          $sort($ratings, function ($a, $b) {$a.threshold > $b.threshold}), 
+          function ($rating, $value) {
+              $rating := $system_average_fit >= $value.threshold ? $value.name : $rating
+          },
+          null
+      );
+      $ratings[name=$rate];
+    )
+
+  get_system_indicators: >
+    (
+      $system := $.system;
+      $indicators := $filter($.dictionaries."system_health.indicators".parameters, function ($v) { $v.requirements ? $eval($v.requirements, $system) : true });
+      $is_external := $contains($system.id, /^world\./i);
+
+      $system_indicators := 
+        ($is_external = false or $system.indicators) 
+          ? $indicators.(
+            $indicator := $;
+            $system_indicator := $system.indicators[id = $indicator.name];
+            $system_sep_result := $lookup($system.seps, $indicator.sep.id);
+
+            $system_sep_fit := $indicator.sep.fit.($system_sep_result in $.* ? $keys()[0]);
+
+            $indicator.sep ? {
+                'id': $indicator.name,
+                'fit': $system_sep_fit ? $system_sep_fit : "none",
+                'comment':
+                  $system_sep_result
+                    ? $join(["Рассчитано на основе автоматической проверки ", $uppercase($indicator.sep.id), ". Результат проверки: ", $system_sep_result])
+                    : "Результат проверки не найден",
+                'date': null
+            } : {
+                'id': $indicator.name,
+                'fit': $system_indicator ? $system_indicator.fit : "none",
+                'comment': $system_indicator ? $system_indicator.comment : null,
+                'date': $system_indicator ? $system_indicator.date : null
+            }
+          );
+    )
+
+  # Получение параметров системы. Данные берется либо из самой системы либо из tactical_units
+  get_systems_parameters: >    
+    (
+      $system_id := $.system_id;
+      $components := $.components;
+      $dictionaries := $.dictionaries;
+      $tactical_units := $.tactical_units;
+
+      $system := $lookup($components, $system_id);
+      $system.entity = "system"
+      ? (
+          /*Если указали пустое поле без значения, то будет null, а с ним все падает дальше*/          
+          $tactical_unit := $lookup($tactical_units, $system.tactical_unit = null ? "" : $system.tactical_unit);
+          $business_owners := ($system.business_owners) ? $system.business_owners : $tactical_unit.business_owners;
+          $application_owner := ($system.application_owner) ? $system.application_owner : $tactical_unit.application_owner;
+          $architect := ($system.architect) ? $system.architect : $tactical_unit.architect;
+          $budget_holder := ($system.budget_holder) ? $system.budget_holder : $tactical_unit.budget_holder;
+
+          $system_category_param := ($system.system_category) ? $system.system_category : $tactical_unit.system_category;
+          $system_category := $filter($dictionaries."settings.business_areas".parameters, function ($v) { $v.name=$system_category_param });
+          $system_category := ($system_category) ? $system_category_param : "undefined";
+          {            
+            'business_owners': ($business_owners) ? $business_owners : "Не заполнено",
+            'application_owner': ($application_owner) ? $application_owner : "Не заполнено",
+            'architect': ($architect) ? $architect : "Не заполнено",
+            'budget_holder': ($budget_holder) ? $budget_holder : "Не заполнено",
+            'system_category': ($system_category) ? $system_category : "Не заполнено",
+            'tactical_unit': ($tactical_unit.title) ? $tactical_unit.title : "Не заполнено"
+          }
+        )
+      : ""
+    )
+
+  # Получение параметров системы. Данные берется либо из самой системы либо из tactical_units
+  get_accounts_list: >
+    (
+      $manifest := $.manifest;      
+
+      /* Создаем массив со списком имен полей из которых будем выбирать логины */
+      $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
+
+      /* Пишем функцию для получения логинов из разных сущностей */
+      /* Пока в качестве одного из параметров передаем scan_fields, чтобы если что можно было поменять состав поиска */
+      $accounts := function($entities, $scan_fields) {(
+          /* Делаем регулярку на выбор только латинских букв */
+          $matcher := /^[a-z]/;
+          $temp_accounts := $distinct($entities.(
+              $entity := $; /* Получаем конкретный экземпляр сущности*/
+              $scan_fields.(
+                  $lookup($entity, $); /* Внутри конкретной сущности берем значение конкретного реквизита для каждого поля указанного в $scan_fields*/
+              )[$matcher($)]; /*Каждое полученное значение сверяем с регуляркой и лишнее игнорируем*/
+          ))[$];/*В предыдущей выборке будут null-ы, для того чтобы избавиться от них делаем фильтр*/
+
+      )};        
+
+      /*Соединяем массивы полученные */
+      $accounts($manifest.components.*, $scan_fields);
+      $accounts($manifest.arch_versions.*.сhanged_data.*, $scan_fields);
+      $all_accounts := $distinct($append(
+                          $append($accounts($manifest.components.*, $scan_fields), $accounts($manifest.arch_versions.*.сhanged_data.*, $scan_fields)),
+                          $accounts($manifest.tactical_units.*, $scan_fields)));
+
+    )
+
+  # Поулучить список систем по конкретному tactical_unit для вывода в контекстах
+  get_systems_for_context: >
+    (
+      $manifest := $.manifest;
+      $tactical_unit := $.tactical_unit;
+      $isExtraLinks := $.isExtraLinks;
+      
+      $components := $manifest.components.$sift(function($v) { $v.entity="system" });
+      $result := $components.$sift(function($v) { $v.tactical_unit in $tactical_unit}).$spread().(
+        $;
+      );
+
+      /* Добавляем окружение, если это нужно */
+      $merge([$result, $isExtraLinks ? $result := (
+          $result.*.links.(
+              {
+                  id: $isSelf 
+                    ? $merge([$lookup($manifest.components, id), { "links": [] }])
+                    : $lookup($manifest.components, id)
+              }
+          );
+      ) : {}]);
+
+      /* Перезаписываем данные манифеста новыми компонентами, если они есть */
+      $result ? $merge([$manifest, {"components": $merge($result)}]);
+    )

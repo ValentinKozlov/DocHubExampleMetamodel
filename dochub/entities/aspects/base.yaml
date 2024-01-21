@@ -2,12 +2,15 @@
 entities:
   aspects:
     title: Аспекты
+    # Параметры использования аспектов
+    config:
+      root_menu: Архитектура/Аспекты    # Размещение аспектов в меню
     description: >
       Архитектурные аспекты.
     schema:
       type: object
       patternProperties:
-        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$":
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -44,6 +47,7 @@ entities:
     menu: >
       (
         $aspects := aspects;
+        $config := entities.aspects.config;
         $makeLocation := function($id) {(
             $arrleft := function($arr ,$count) {
                 $map($arr, function($v, $i) {
@@ -51,18 +55,19 @@ entities:
                 })
             };
             $domains := $split($id, ".");
-            "Прикладная архитектура/Функционал систем/" & $join($map($domains, function($domain, $index) {(
+            $config.root_menu & "/" & $join($map($domains, function($domain, $index) {(
                 $lookup($aspects, $join($arrleft($domains, $index), ".")).title
             )}), "/");
         )};
-        [         
-          {
-              "link": "/entities/aspects/blank?dh-aspect-id=zayavka_na_proverku",
-              "location": "Прикладная архитектура/Функционал систем"
-          },
-          $aspects.$spread().{
+        [$append([{
+            "link": "/entities/aspects/tree", /* Ссылка на форму представления аспектов в виде дерева */
+            "location": $config.root_menu     /* Расположение в меню */
+          }],
+          [$aspects.$spread().(          
+            *.location ? {
               "link": "/entities/aspects/blank?dh-aspect-id=" & $keys()[0],     /* Формируем ссылку на карточку */
               "location": $makeLocation($keys()[0])                             /* Формируем расположение в меню */
-          }
-        ][location];
+            }
+          )][location]
+        )];
       )

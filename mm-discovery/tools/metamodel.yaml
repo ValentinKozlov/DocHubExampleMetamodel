@@ -1,0 +1,92 @@
+# Конфигурация рендеринга матемодели репозитория
+mm_discovery.stalker:
+  swamp.overview:
+    title: Общая карта
+    location: Метамодель/Общая метамодель
+    order: 10100
+    nodes:
+      sweaf:
+        title: SWEAF
+      sweaf.ta:
+        title: Техническая архитектура
+      sweaf.app:
+        title: Прикладная архитектура
+      sweaf.ia:
+        title: Информационная архитектура
+      sweaf.ba:
+        title: Бизнес-архитектура
+    domains:
+      - "**" # Отражаем все домены
+    hooks:
+      after: >
+        (
+            $result := result;
+            $translateId := function($id) {( 
+                $result := $lookup({
+                    "aspects": "sweaf.app.aspects",
+                    "components": "sweaf.app.components"
+                }, $id);
+                $result ? $result : $id;
+            )};  
+            $merge([
+                $result,
+                {
+                    "nodes": $merge($result.nodes.$spread().(
+                        $id := $keys()[0];
+                        {
+                            $translateId($id): $.*    
+                        }       
+                    )),
+                    "links": [$result.links.(
+                        $merge([$, {"from": $translateId(from), "to": $translateId(to)}]);
+                    )]       
+                }       
+        
+            ]);
+        )
+  swamp.app:
+    title: Прикладная архитектура
+    location: Метамодель/Прикладная архитектура
+    order: 10200
+    nodes:
+      sweaf:
+        title: SWEAF
+      sweaf.app:
+        title: Прикладная архитектура
+    domains:
+      - aspects
+      - components      
+      - sweaf.app.**
+  swamp.ta:
+    title: Техническая архитектура
+    location: Метамодель/Техническая архитектура
+    order: 10400
+    nodes:
+      sweaf:
+        title: SWEAF
+      sweaf.ta:
+        title: Техническая архитектура
+    domains:
+      - sweaf.ta.**
+  swamp.ia:
+    title: Информационная архитектура
+    location: Метамодель/Информационная архитектура
+    order: 10300
+    nodes:
+      sweaf:
+        title: SWEAF
+      sweaf.ia:
+        title: Информационная архитектура
+    domains:
+      - sweaf.ia.**
+  swamp.ba:
+    title: Бизнес-архитектура
+    location: Метамодель/Бизнес-архитектура
+    order: 10500
+    nodes:
+      sweaf:
+        title: SWEAF
+      sweaf.ba:
+        title: Бизнес-архитектура
+    domains:
+      - sweaf.ba.**

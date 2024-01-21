@@ -2,9 +2,7 @@ imports:
   - base.yaml
   - tree.yaml
   - blank.yaml
-  - summary.yaml
+  # - summary.yaml
   - docs.yaml
   - contexts.yaml
   - hierarchy.yaml
-  - forms.yaml    
-  - components_extension.yaml

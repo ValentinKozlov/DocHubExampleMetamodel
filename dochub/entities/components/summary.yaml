@@ -8,9 +8,9 @@ entities:
         widgets:
           summary: # Идентификатор виджета
             # Иконка виджета
-            # icon: settings
+            icon: settings
             # Название виджета
-            # title: О системе
+            title: Сводка по компоненту
             # Идентификатор презентации, которая будет использоваться в виджете
             presentation: summary
             # Расположение слева
@@ -19,15 +19,15 @@ entities:
             order: 10
             # Определяем стиль виджета
             style:
-              margin: -8px
-              border: false
+              margin: 4px
+              border: true
       summary:
-        # title: О системе
+        title: Сводка по компоненту
         params:
           type: object
           properties:
             component:
-              title: Идентификатор системы
+              title: Идентификатор компонента
               type: string
           required:
             - component
@@ -49,11 +49,7 @@ entities:
                     {
                         "title": "Название",
                         "content": title
-                    },
-                    {
-                        "title": "Краткое описание",
-                        "content": short_description
-                    }                   
+                    }
                 ], $merge($FORM).$spread().{
                     "title": $.*.title,
                     "content": $lookup($COMPONENT, $.$keys())

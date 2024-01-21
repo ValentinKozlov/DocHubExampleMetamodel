@@ -28,7 +28,7 @@ entities:
               $component := $lookup($components, $domain);
               $originComponent := $lookup($manifest.components, $domain);
               $context := $lookup($manifest.contexts, $domain);
-              $domain_plantuml := $replace($domain, '-', '_');
+        
               /* Определяем является ли элемент областью */
               $isAreaBegin := $areas[$index + 1].$substring(0, $domain.$length() + 1) = $domain & ".";
         
@@ -37,9 +37,9 @@ entities:
                       $context.title ? $context.title : $domain
                   );
                       "$Region("
-                      & $domain_plantuml
+                      & $domain
                       & ",\"[[/architect/components/"
-                      & $domain_plantuml
+                      & $domain
                       & " " & $title
                       & "]]\", ) {\n";
               ) : "");
@@ -49,15 +49,13 @@ entities:
                   $not($isAreaBegin) and $component ? (
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
-                      $system_rate := $eval($manifest.functions.get_systems_total_rating, {'system_id': $domain,
-                        'components': $manifest.components, 'dictionaries': $manifest.dictionaries, 'functions': $manifest.functions});
-                      $color := $domain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
+                      $color := $domain = $focusId ? "#FFBBCC" : "";
                       $result := "$Entity(\"" 
                           & $entity 
                           & "\", \""
-                          & "[[/architect/components/" & $domain_plantuml & " " & $component.title & "]]"
+                          & "[[/architect/components/" & $domain & " " & $component.title & "]]"
                           & "\", " 
-                          & $domain_plantuml                          
+                          & $domain                          
                           & ", \""
                           & $component.type
                           & "\", \""
@@ -116,7 +114,7 @@ entities:
       makePumlComponentsLinks: >
         (
           $join(links.(
-            $replace(from, '-', '_') & " " & direction & " " & $replace(to, '-', '_') & (title ? ": " & title : "") & "\n"
+            from & " " & direction & " " & to & (title ? ": " & title : "") & "\n"
           ))
         )
     # Представления контекстов в PlantUML
@@ -130,11 +128,11 @@ entities:
             "dh-context-id":
               title: Идентификатор контекста
               type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
             "dh-focus-id":
               title: Идентификатор требующий подсветку
               type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
+              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*$
           required:
             - dh-context-id
         type: plantuml

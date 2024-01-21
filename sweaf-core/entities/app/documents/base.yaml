@@ -1,0 +1,18 @@
+entities:
+  docs:
+    title: Документы
+        # Конфигурация 
+    config:
+      root_menu: "" # Корневой элемент меню
+    # Строим меню по объектам документа
+    menu: >
+      (
+        $root_menu := entities.docs.config.root_menu;
+        docs.$spread().(
+            *.location ? {
+                "location": *.location,
+                "order": *.order,
+                "link": "entities/docs/blank?dh-doc-id=" & $keys()[0]
+            }
+        )
+      )
