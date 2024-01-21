@@ -1,5 +1,5 @@
 imports:
-  # - base.yaml
-  # - plantuml.yaml
+  - base.yaml
+  - plantuml.yaml
   - smartants.yaml
   - tree.yaml

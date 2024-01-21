@@ -1,4 +1,0 @@
-imports:
-  - 01_components.yaml
-  - 02_contexts.yaml
-  - 03_documents.yaml

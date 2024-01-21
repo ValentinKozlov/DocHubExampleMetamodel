@@ -40,7 +40,7 @@ rules:
                   "entity" : *.entity
               }
           )[$not($exists(mask)) and $not(entity in ["unit", "person"])].{
-            "uid": "$dh-mm-ofb-" & componentID,
+            "uid": "[$dh-mm-ofb] " & componentID,
             "correction": "Добавьте компонент в контекст",
             "description": "Предполагается, что компонент не включенный в контекст не учтен.",
             "location": "/architect/components/" & componentID

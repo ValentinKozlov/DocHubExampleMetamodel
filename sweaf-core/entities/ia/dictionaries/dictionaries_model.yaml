@@ -101,7 +101,15 @@ entities: # Сущности расширенной метамодели
             (
                 $dictionaries := [$."sweaf.ia.dictionaries".$spread().$merge([$.*, {"id": $keys($)}])];
                 $dictionaries [id=$params.id];
-            )     
+            )
+      dictionary_card_brief:
+        type: markdown
+        template: templates/dictionary_card_brief.md
+        source: >
+            (
+                $dictionaries := [$."sweaf.ia.dictionaries".$spread().$merge([$.*, {"id": $keys($)}])];
+                $dictionaries [id=$params.id];
+            )            
       critical_levels:
         type: upload
         title: Критичность системы

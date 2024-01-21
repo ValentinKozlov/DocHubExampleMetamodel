@@ -1,17 +1,17 @@
 # Метаданные пакета
-# $package:
-#   sweaf: # Идентификатор пакета
-#     # Краткое название пакета
-#     name: SWEAF
-#     # Поставщик
-#     vendor: Valentin Kozlov
-#     # Описание
-#     description: Swamp Enterprise Architect Framework
-#     # Версия
-#     version: 1.0.0
-#     # Зависимости от других пакетов
-#     dependencies:
-#       dochub: ">=4.1.0"
+$package:
+  sweaf: # Идентификатор пакета
+    # Краткое название пакета
+    name: SWEAF
+    # Поставщик
+    vendor: Valentin Kozlov
+    # Описание
+    description: Swamp Enterprise Architect Framework
+    # Версия
+    version: 1.0.0
+    # Зависимости от других пакетов
+    dependencies:
+      dochub: ">=4.1.0"
 
 imports:
   - datasets/root.yaml

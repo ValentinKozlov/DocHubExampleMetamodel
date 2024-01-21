@@ -1,7 +1,7 @@
 imports:
   - accounts.yaml  
   - technologies.yaml
-  # - validators.yaml
+  - validators.yaml
   - systems.yaml
   - valid_system.yaml
 

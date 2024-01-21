@@ -1,10 +1,6 @@
 # Расширение сущности "Contexts" для генерации PlantUML диаграмм
 entities:
   contexts:
-    # Предопределенные конфигурационные параметры для генерации PlantUML
-    config:
-      # Какой движок будет использоваться для рендера
-      renderCore: elk # elk / smetana / graphviz
     # API функции, используемые для генерации PlantUML
     api:
       # Генерирует на данных о компонентах и областях PlantUML диаграмму компонентов
@@ -31,7 +27,7 @@ entities:
               $domains_number := $count($tu);
 
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
-              /*чем 2 домена, то берем его целиком. Например, для идентификатора samolet.bu_csp берем его, а для samolet.bu_csp.platform10d берем platform10d */
+              /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_frogs берем его, а для swamp.bu_frogs.platform10d берем platform10d */
               $tactical_unit := $lookup($manifest.tactical_units, $domains_number > 2 ? $tu[$domains_number-1] : $domain);
               $component := $lookup($components, $domain);
               $context := $lookup($manifest.contexts, $domain);              
@@ -137,58 +133,13 @@ entities:
     # Представления контекстов в PlantUML
     presentations:
       plantuml:
-        title: Представление в PlantUML
-        params:
-          title: Требуемые параметры для презентации
-          type: object
-          properties:
-            "dh-context-id":
-              title: Идентификатор контекста
-              type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
-            "dh-focus-id":
-              title: Идентификатор требующий подсветку
-              type: string
-              pattern: ^[0-9a-zA-Z][a-zA-Z0-9_-]*(\.[0-9a-zA-Z][a-zA-Z0-9_-]*)*$
-          required:
-            - dh-context-id
-        type: plantuml
-        $constructor: >  # Переносим необходимую информацию из контекста в презентацию 
-          (
-            $id := $params."dh-context-id";
-            $context := $lookup(contexts, $id);
-            $prototype := entities.contexts.presentations.plantuml;
-          
-            /* Преобразует относительные пути к файлам в прямые*/
-            $toDirectRes := function($value) {
-                $substring($value, 0, 4) = "res:" ? $value : "res://contexts/" & $id & "#" & $value
-            };
-
-            /* Если явно указан puml файл, просто рендерим его */
-            ($type($context.uml) = "string") and ($substring($context.uml, -5) = ".puml") ? (
-                {
-                  "type": "plantuml",
-                  "source": $toDirectRes($context.uml)
-                }
-            ) : (
-                $result := $context.source ? ($merge([$prototype, {
-                    "origin": { "_source": $context.source, "_origin": "($)" }
-                }])) : $prototype;
-
-                /* Если в контексте переопределен шаблон, используем его по прямой ссылке */
-                $result := $context.template 
-                    ? $merge([$result, { "template":  $toDirectRes($context.template) }])
-                    : $result;
-            )
-          )
-        template: templates/template.puml
         source: >
           (
             $id := $params."dh-context-id";
             $focusId := $params."dh-focus-id";
 
             /* Для теста */
-            /*$id := "arch.bu_moscow.pal1_sdevelopment";*/
+            /*$id := "swamp.bu_frogs.healthy_head";*/
             /*$params := {};*/
 
             /* Получаем доступ к оригинальным данным */
