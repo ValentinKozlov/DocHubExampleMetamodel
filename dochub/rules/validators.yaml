@@ -8,7 +8,7 @@ rules:
     dochub.metamodel.contexts:
       title: Контроль целостности контекстов
     dochub.metamodel.contexts.no_found_component:
-      title: Несуществующие компоненты
+      title: Несуществующие компоненты 22222
       source: >
         ([(  
           $MANIFEST := $;

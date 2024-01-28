@@ -28,7 +28,7 @@ entities:
 
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
               /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_frogs берем его, а для swamp.bu_frogs.platform10d берем platform10d */
-              $tactical_unit := $lookup($manifest.tactical_units, $domains_number > 2 ? $tu[$domains_number-1] : $domain);
+              $tactical_unit := $lookup($manifest."sweaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);
               $component := $lookup($components, $domain);
               $context := $lookup($manifest.contexts, $domain);              
               
