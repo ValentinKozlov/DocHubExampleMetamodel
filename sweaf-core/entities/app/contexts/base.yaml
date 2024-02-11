@@ -31,7 +31,7 @@ entities:
           $params := $;          
           $isAddGroup := $params."add-group";
           $distinct($params.components.$spread().(
-              $componentId := $keys()[0];              
+              $componentId := $keys()[0];
               /*Если в контексте указан флаг группировки add-group: true и в системах указан tactical_unit, то добавляем еще одну группировку после БЮ*/
               $componentId := $isAddGroup ?
                 (
@@ -40,7 +40,7 @@ entities:
                   $componentId := ($tactical_unit) ? $replace($componentId, $bu_id, $bu_id & "." & $tactical_unit) : $componentId;
                 ): $componentId;
               
-              $domains := $componentId.$split(".");              
+              $domains := $componentId.$split(".");
               $limit := $count($domains) - 1;
               $areaId := $map($domains, function($v, $i) {(
                   $join($map($domains, function($sv, $si) {

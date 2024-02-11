@@ -29,13 +29,13 @@ entities:
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
               /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_frogs берем его, а для swamp.bu_frogs.platform10d берем platform10d */
               $tactical_unit := $lookup($manifest."sweaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);
-              $component := $lookup($components, $domain);
-              $context := $lookup($manifest.contexts, $domain);              
+              $component := $lookup($components, $domain);              
               
               /* Возвращение оригинального идентификатора происходит только с 3-го домена: компания.бизнес-юнит.имя добавленного кластера */
-              $originDomain := $domains_number > 3 ? ($component ? $domain : $tu[2] ? $replace($domain, "." & $tu[2], "")) : $domain;
+              $originDomain := $domains_number > 3 ? ($component ? $domain : $tu[2] ? $replace($domain, "." & $tu[2], "", 1)) : $domain;
+              $context := $lookup($manifest.contexts, $originDomain);
               
-              $domain_plantuml := $replace($originDomain, '-', '_');
+              $domain_plantuml := $replace($replace($originDomain, '-', '_'), '.', '_');
               $component := $component ? $component : $lookup($components, $originDomain);
               $originComponent := $lookup($manifest.components, $originDomain);
               /*"Домен: " & $domain & "| Оригинальный домен: " & $originDomain & "| Домен plantuml: " & $domain_plantuml*/
@@ -53,7 +53,7 @@ entities:
                       & $domain_plantuml
                       & " " & $title
                       & "]]\", ) {\n";
-              ) : "");
+              ) : "");              
 
               /* Если домен является компонентом, выводим его на диаграмму */
               $result := $result & (
@@ -100,7 +100,7 @@ entities:
                           $result := $result & "$EntityExpand(\""
                           & $entity
                           & "\", "
-                          & $domain_plantuml
+                          & $originDomain
                           & ")\n";
         
                       /* Закрываем секцию компонента */
@@ -127,7 +127,7 @@ entities:
       makePumlComponentsLinks: >
         (
           $join(links.(
-            $replace(from, '-', '_') & " " & direction & " " & $replace(to, '-', '_') & (title ? ": " & title : "") & "\n"
+            $replace($replace(from, '-', '_') & " " & direction & " " & $replace(to, '-', '_') & (title ? ": " & title : ""),'.', '_') & "\n"
           ))
         )
     # Представления контекстов в PlantUML
@@ -139,7 +139,7 @@ entities:
             $focusId := $params."dh-focus-id";
 
             /* Для теста */
-            /*$id := "swamp.bu_frogs.healthy_head";*/
+            /*$id := "bu_hippos.tactical_units";*/
             /*$params := {};*/
 
             /* Получаем доступ к оригинальным данным */
