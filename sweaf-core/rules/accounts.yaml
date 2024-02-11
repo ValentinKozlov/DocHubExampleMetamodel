@@ -10,7 +10,7 @@ rules:
           $systems := $manifest.components;
           $dictionaries := $manifest."sweaf.ia.dictionaries";
           $functions := $manifest.functions;
-          $tactical_units := $manifest.tactical_units;
+          $tactical_units := $manifest."sweaf.ba.tactical_units";
           
           $matcher := /^[a-z]/;
           $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
@@ -45,7 +45,7 @@ rules:
           $systems := $manifest.components;
           $dictionaries := $manifest."sweaf.ia.dictionaries";
           $functions := $manifest.functions;
-          $tactical_units := $manifest.tactical_units;
+          $tactical_units := $manifest."sweaf.ba.tactical_units";
 
           /* Пишем функцию для получения списка ошибок */
           $errors_list := function($field, $manifest, $system_id, $param) {(

@@ -115,36 +115,34 @@ entities:
             $manifest := $;        
             $dictionaries := $manifest."sweaf.ia.dictionaries";
             $functions := $manifest.functions;
+            $tactical_units := $manifest."sweaf.ba.tactical_units";
             $accounts := $dictionaries."accounts".parameters;
-            $systems := $manifest.components;
-            
-            $sys_pattern := $eval("/^" &  $system_id & "$/");
-            $system := $systems.$sift(function($v, $k) {$k ~> $sys_pattern});
-            
+            $components := $manifest.components;
+            $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $components, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
             $contacts := $dictionaries."settings.contacts".parameters.(
-              $name := name;
-              $contact_account_names := $spread($system.*).$sift(function ($v, $k) { $k = $name }).*;
-              {
+                $name := name;
+                $contact_account_names := $spread($systems_parameters).$sift(function ($v, $k) { $k = $name }).*;
+                {
                 "title": title,
                 "scrum_title": scrum_title,
                 "is_optional": is_optional,
                 "order_index": order_index,
                 "account_names": [$contact_account_names]
-              };
+                };
             )[$not(is_optional) or $count(account_names) > 0];
 
             $sort($contacts, function ($l, $r) { $l.order_index > $r.order_index }).(
-              $contact_settings := $;
-              account_names.(
-                $account := $eval($functions.get_account,{"username": $, "accounts": $accounts});
-                {
-                  "title": $contact_settings.title,
-                  "scrum": $contact_settings.scrum_title,
-                  "res_persons": $account.title,
-                  "acc_persons": $account.name,
-                  "acc_link": $account.acc_link
-                } 
-              )
+                  $contact_settings := $;
+                  account_names.(
+                    $account := $eval($functions.get_account,{"username": $, "accounts": $accounts});
+                    {
+                      "title": $contact_settings.title,
+                      "scrum": $contact_settings.scrum_title,
+                      "res_persons": $account.title,
+                      "acc_persons": $account.name,
+                      "acc_link": $account.acc_link
+                    } 
+                  )
             );
           )
 
@@ -260,7 +258,7 @@ entities:
             $comp_pattern := $eval("/^" & $system_id & "\\.[a-zA-Z0-9\\_]*$/");
             [$distinct($components.$sift(function($v, $k) {$k ~> $sys_pattern or $k ~> $comp_pattern}).$spread().(
               $.*.(            
-                $.repository ? $get_repo($.repository)     
+                $.repository ? $get_repo($.repository)
               )
             ))];  
           )

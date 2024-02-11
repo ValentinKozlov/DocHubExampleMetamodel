@@ -83,7 +83,7 @@ rules:
             $MANIFEST := $;            
             [[$distinct(components.$spread().(
                 $ens($keys()[0])
-            ))[$not($exists($lookup($MANIFEST.components, $))) and $not($exists($lookup($MANIFEST.tactical_units, $)))]].{
+            ))[$not($exists($lookup($MANIFEST.components, $))) and $not($exists($lookup($MANIFEST."sweaf.ba.tactical_units", $)))]].{
                 "uid": "[$dh-mm-cmp-ndp] " & $,
                 "correction": "Опишите компонент с идентификатором [" & $ & "]",
                 "description": "Предполагается, что для всех уровней компоненты определены."

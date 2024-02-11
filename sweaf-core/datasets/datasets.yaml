@@ -4,37 +4,43 @@ datasets:
     source: >
       (
         $manifest := $;
+        $systems := $manifest.components.$sift(function ($v) { $v.entity = "system"});
         $dictionaries := $manifest."sweaf.ia.dictionaries";
         $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
-        $technologies := $.technologies.items;
-        $components := $manifest.components.$sift(function($v) { $v.entity="system" });
+        $technologies := $manifest.technologies.items;
+        $tactical_units := $manifest."sweaf.ba.tactical_units";
+        $units := $tactical_units.$sift(function ($v) { $v.type = "bu" });
 
-        [$components.$spread().(
-          $component_id := $keys()[0];
-          $bu_id := $split($component_id, ".", 2) ~> $join('.');
-          $bu_block := $split($component_id, ".", 3) ~> $join('.');
+        [$systems.$spread().(
+          
+          $system_id := $keys()[0];
+          $bu_id := $split($system_id, ".", 2) ~> $join('.');
+          $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+          $tactical_unit := $systems_parameters.tactical_unit;
           $.*.(
             {
-              "id": $component_id,
-              "link_to_system": "/architect/components/" & $component_id,
+              "id": $system_id,
+              "link_to_system": "/architect/components/" & $system_id,
               "title": title,
               "entity": entity,
+              "guid": guid,
+              "dev_model": dev_model,
               "critical_level": critical_level,
               "system_status": system_status,
               "short_description": short_description,
               "description": description,
               "system_entities": "Ссылка",
-              "link_to_system_entities": "/entities/business_entities/business_entities_table_in_systems.filtered?system_id=" & $component_id,
+              "link_to_system_entities": "/entities/sweaf.ia.business_entities/business_entities_table_in_systems.filtered?system_id=" & $system_id,
               "deployment_card": "Ссылка",
-              "link_to_deployment_card": "/entities/sweaf.ta.environments/deployment_card?id=" & $component_id,
-              "application_owner": $get_account_new(application_owner,$accounts).title,              
-              "business_owners": $.business_owners.([$get_account_new($,$accounts).title]),              
-              "architect": $get_account_new(architect,$accounts).title,              
-              "budget_holder": $get_account_new(budget_holder,$accounts).title,
-              "budget_holders_bu": $lookup($manifest.components, $get_account_new(budget_holder,$accounts).bu).title,
-              "owner_unit":  $bu_id ? $lookup($manifest.components, $bu_id).title : $bu_id,
-              "bu_block":  $lookup($manifest.components, $bu_block).bu_block,
+              "link_to_deployment_card": "/entities/sweaf.ta.environments/deployment_card?id=" & $system_id,
+              "application_owner": $eval($functions.get_account,{"username": $systems_parameters.application_owner, "accounts": $accounts}).title,
+              "business_owners": $systems_parameters.business_owners.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title]),
+              "architect": $eval($functions.get_account,{"username": $systems_parameters.architect, "accounts": $accounts}).title,
+              "budget_holder": $eval($functions.get_account,{"username": $systems_parameters.budget_holder, "accounts": $accounts}).title,
+              "budget_holders_bu": $lookup($units, $eval($functions.get_account,{"username": $systems_parameters.budget_holder, "accounts": $accounts}).bu).title,
+              "owner_unit":  $bu_id ? $lookup($units, $bu_id).title : $bu_id,
+              "tactical_unit":  $tactical_unit,
               "prod_url": $distinct(urls[id = "prod"].url),
               "technologies": $map(technologies, function($tech, $i, $a){
                   $filter($technologies.$spread(), function($v, $i, $a) {
@@ -48,34 +54,6 @@ datasets:
         )]^(id)
       )
 
-  # сделал копию в api, если именно тут не нужно - можно удалить
-  swamp.dataset.accounts:
-    source: >
-      (
-        $_manifest := $;
-        /* Делаем регулярку на выбор только латинских букв */
-        $matcher := /^[a-z]/;
-        /* Создаем массив со списком имен полей из которых будем выбирать логины */
-        $scan_fields := ["budget_holder", "application_owner", "business_owners", "architect"];
-        /* Выбираем системы */
-        $system_accounts := $distinct($_manifest.components.*.(
-            $component := $; /* Получаем конкретную систему*/
-            $scan_fields.(
-                $lookup($component, $); /* Внутри конкретной системы берем значение конкретного реквизиты для каждого поля указанного в $scan_fields*/
-            )[$matcher($)]; /*Каждое полученное значение свяряем с регуляркой и лишнее игнорируем*/
-        ))[$];/*В предыдущей выборке будут nill-ы, для того чтобы избавиться от них делаем фильтр*/
-
-        /* Повторяем предыдущий алгоритм для версий архитектуры */
-        $arch_versions_accounts := $distinct($_manifest.arch_versions.*.сhanged_data.*.(
-            $component := $;
-            $scan_fields.(
-                $lookup($component, $);
-            )[$matcher($)];
-        ))[$];
-
-        /*Соединяем два полученных выше массива*/
-        $all_accounts := $distinct($append($system_accounts, $arch_versions_accounts ));
-      )
 
   swamp.dataset.repositories:
     source: >

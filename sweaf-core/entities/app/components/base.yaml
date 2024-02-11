@@ -24,6 +24,9 @@ entities:
               type: array
               items:
                 $ref: "#/$rels/sweaf.ia.business_entities.business_entity"
+            tactical_unit:
+              title: Тактический юнит для группировки систем
+              $ref: "#/$rels/sweaf.ba.tactical_units.tactical_unit"
             business_owners:
               title: Логины бизнес-владельцев процессов реализованных в системе 
               type: array
