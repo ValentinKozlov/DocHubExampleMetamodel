@@ -8,7 +8,7 @@ entities:
     schema:
       type: object
       patternProperties:
-        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+        "^[0-9a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -120,8 +120,9 @@ entities:
         source: >
           (
             /*Получаем глобальные контексты*/
-            $systems := $.components;
-            $environments := $."sweaf.ta.environments";
+            $manifest := $;
+            $systems := $manifest.components;
+            $environments := $manifest."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $environment_id := $params.environment_id;
@@ -218,9 +219,10 @@ entities:
         source: >
           (
             /*Получаем глобальные контексты*/
-            $systems := $.components;
-            $dictionaries := dictionaries;
-            $environments := $."sweaf.ta.environments";
+            $manifest := $;
+            $dictionaries := $manifest."sweaf.ia.dictionaries";
+            $systems := $manifest.components;            
+            $environments := $manifest."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $options := $split($params.parent, ":");
@@ -380,18 +382,17 @@ entities:
         source: >
           (
             /*Получаем глобальные контексты*/
-            $functions := $.functions;
-            $systems := $.components;
+            $manifest := $;            
+            $systems := $manifest.components;
 
             /*Получаем параметры и проверяем их*/
             $system_id := $params.system_id;
             /*$system_id := "swamp.bu_bank.billing";*/
-            $systems := $.components;
             $system := $lookup($systems, $system_id);
             $assert($type($system.title)="string", "В запрос system_deployment_table в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
 
             /*Получаем данные по DU компонент системы*/
-            $comp_pattern := $eval("/^" & $system_id & "./");
+            $comp_pattern := $eval("/^" & $system_id & "\\./");
             $comp_nodes := $systems.$sift(function($v, $k) {$k ~> $comp_pattern}).$spread().(
               $component_id := $keys()[0];
               $system := $.*;
@@ -412,16 +413,14 @@ entities:
                     "link_to_component": "/architect/components/" & $component_id,
                     "component_title": $title,
                     "multiplier": $multiplier,
-                    "resources_total": $eval($functions.get_resources_view,
-                    {"context":
+                    "resources_total": $get_resources_view(
                       {"ram": $total_ram,
                       "cpu": $total_cpu,
                       "storage_size": $total_storage_size,
                       "storage_type": $.storage_type,
                       "cpu_type": $.cpu_type
-                      }, "output_type": "full"}),
-                    "resources": $eval($functions.get_resources_view,
-                    {"context": $, "output_type": "full"})
+                      }, "full"),
+                    "resources": $get_resources_view($, "full")
                   };
                 );
               );
@@ -477,9 +476,9 @@ entities:
         source: >
           (
             /*Получаем глобальные контексты*/
-            $functions := $.functions;
-            $systems := $.components;
-            $environments := $."sweaf.ta.environments";
+            $manifest := $;            
+            $systems := $manifest.components;
+            $environments := $manifest."sweaf.ta.environments";
 
             /*Получаем параметры и проверяем их*/
             $system_id := $params.system_id;
@@ -489,11 +488,7 @@ entities:
             $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
 
             /*Получаем данные по DU компонент системы*/
-            $comp_nodes := $eval($functions.get_resources,{
-              "system_id": $system_id,
-              "systems": $systems
-            });
-
+            $comp_nodes := $get_resources($system_id, $systems);
             $comp_nodes := $comp_nodes{
               `id`: {
                 "id": id,
@@ -546,15 +541,14 @@ entities:
               "du_id": du_id,
               "component_title": component_title,
               "multiplier": $number(multiplier) > 0 ? $number(multiplier) : 1,
-              "resources": $eval($functions.get_resources_view,{"context": $, "output_type": "full"}),
-              "resources_total": $eval($functions.get_resources_view,
-              {"context":
+              "resources": $get_resources_view($, "full"),
+              "resources_total": $get_resources_view(
                 {"ram": $.ram * multiplier,
                 "cpu": $.cpu * multiplier,
                 "storage_size": $.storage_size * multiplier,
                 "storage_type": $.storage_type,
                 "cpu_type": $.cpu_type
-                }, "output_type": "full"}),
+                }, "full"),
               "environment": environment,
               "link_to_component": link_to_component,
               "link_to_environment": link_to_environment
@@ -603,8 +597,8 @@ entities:
         source: >
           (
             /*Получаем глобальные контексты*/
-            $functions := $.functions;
-            $systems := $.components;
+            $manifest := $;            
+            $systems := $manifest.components;
 
             /*Получаем параметры и проверяем их*/
             $system_id := $params.system_id;
@@ -612,11 +606,7 @@ entities:
             $assert($type($system.title)="string", "В запрос get_total_system_resources в качестве параметра передан некорректный идентификатор системы: " & $system_id & ". Исправьте идентификатор и повторите операцию.");
 
             /*Получаем данные по DU компонент системы*/
-            $comp_nodes := $eval($functions.get_resources,{
-              "system_id": $system_id,
-              "systems": $systems
-            });
-
+           $comp_nodes := $get_resources($system_id, $systems);
             /* Суммируем ресурсы в разрезе типа среды и имени DU*/
             $objects := $comp_nodes{
               `resource_type`: {
@@ -639,7 +629,7 @@ entities:
               "resource_type": resource_type,
               "du_id": du_id,
               "component_entity": component_entity,
-              "resources_total": $eval($functions.get_resources_view,{"context": $, "output_type": "short"})
+              "resources_total": $get_resources_view($,"short")
             };
           )
 
@@ -662,9 +652,9 @@ entities:
         source: >
           (          
             /*Получаем глобальные контексты*/
-            $functions := $.functions;
-            $repositories := $.repositories;
-            $systems := $.components;
+            $manifest := $;            
+            $repositories := $manifest.repositories;
+            $systems := $manifest.components;
 
             /*Получаем параметры и проверяем их*/
             $gitlab_id := $number($params.gitlab_id);
@@ -682,11 +672,7 @@ entities:
             $system_id := $system.id;
 
             /*Получаем данные по DU компонент системы*/
-            $comp_nodes := $eval($functions.get_resources,{
-              "system_id": $system_id,
-              "systems": $systems
-            });
-
+            $comp_nodes := $get_resources($system_id, $systems);
             /*
             Группируем данные для API. Идея группировки в том, что на базе полученных данных нужно дать
             возможность создать три заявки в SD:
@@ -719,7 +705,99 @@ entities:
             };
           )
 
-
+# Функции необходимы для работы сущности
+functions:
+  get_resources_view:
+    title: Получить строку вывода для ресурсов DU
+    # Входящие параметры
+    params:
+      - alias: context
+        type: object
+        title: Строка с ресурсами DU
+        required: true
+      - alias: output_type
+        type: string
+        title: Вариант строки вывода
+        required: true
+    code: >  
+      (
+        $context := context;
+        $output_type := output_type;
+        $output_type = "short"
+        ? "RAM: " & $context.ram & " Gb" & "\n"
+          & "CPU: " & $context.cpu & " Core" & "\n"
+          & ($context.storage_size > 0
+          ? "Storage: " & $context.storage_size & " Gb")
+        : "RAM: " & $context.ram & " Gb" & "\n"
+          & ($context.cpu_type != ""
+            ? "CPU type: " & $context.cpu_type & "\n" : "")
+          & "CPU: " & $context.cpu & " Core" & "\n"
+          & ($context.storage_size > 0 
+            ? "Storage type: " & $context.storage_type & "\n"
+            & "Storage: " & $context.storage_size & " Gb" : "")
+      )
+  
+  # Получить ресурсы по системе
+  get_resources:
+    title: Получить ресурсы по системе
+    # Входящие параметры
+    params:
+      - alias: system_id
+        type: string
+        title: Идентификатор системы
+        required: true
+      - alias: systems
+        type: object
+        title: Все системы
+        required: true
+    code: >
+      (
+        /*Проверяем входящие параметры*/
+        $system_id := system_id;
+        $systems := systems;
+        $system := $lookup($systems, $system_id);        
+        
+        /*Получаем информацию по DU*/
+        $comp_pattern := $eval("/^" & $system_id & "\\./");
+        $comp_nodes := $systems.$sift(function($v, $k) {$k ~> $comp_pattern}).$spread().(
+            $component_id := $keys()[0];			
+            $component := $.*;
+            $title := $system.title;
+            $du := $component.deployment_units.$spread().(
+            $du_id := $keys()[0];
+            $.*.(
+              /*Выносим расчеты за алгоритм формирования JSON, так как внутри типы определяются некорректно */
+              $multiplier := $number(multiplier) > 0 ? $number(multiplier) : 1;
+              $cpu := $number(cpu);
+              $total_cpu := $cpu * $multiplier;
+              $ram := $number(ram);
+              $total_ram := $ram * $multiplier;
+              $namespace := $split($system_id, ".");
+              $namespace := $namespace[$count($namespace)-1];
+              {
+                "id": $du_id & "." & $component_id,
+                "du_id": $du_id,
+                "system_id": $system_id ,
+                "namespace": $namespace,
+                "component_id":  $component_id,
+                "component_title": $component.title,
+                "component_entity": $component.entity,
+                "resource_type": resource_type,
+                "multiplier": $multiplier,
+                "cpu_type": cpu_type,
+                "cpu": $cpu,
+                "total_cpu": $total_cpu,
+                "ram": $ram,
+                "total_ram": $total_ram,
+                "storage_type": storage_type,
+                "storage_size": storage_size,
+                "total_storage_size": storage_size * multiplier,
+                "link_to_component":  "/architect/components/" & $component_id
+              };                
+            );
+          );		
+        );
+      )
 
 # Описываем основные группы сред
 sweaf.ta.environments:

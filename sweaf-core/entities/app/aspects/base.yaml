@@ -1,24 +1,12 @@
 #  Базовое описание сущности "Contexts"
 entities:
   aspects:
-    title: Функциональность системы
+    title: Функциональность систем
     # Параметры использования аспектов
     config:
       root_menu: Прикладная архитектура/Функционал систем    # Размещение аспектов в меню
     description: >
-      Архитектурные аспекты.
-    schema:
-      type: object
-      patternProperties:
-        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z][a-zA-Z0-9_-]*)*$":
-          type: object
-          properties:
-            title:
-              title: Название аспекта
-              type: string
-          required:
-            - title
-      additionalProperties: false
+      Функциональность систем
     # Определяет пути к объектам сущности
     objects:
       function:

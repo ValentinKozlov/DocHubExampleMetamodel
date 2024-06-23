@@ -6,54 +6,57 @@ datasets:
         $manifest := $;
         $systems := $manifest.components.$sift(function ($v) { $v.entity = "system"});
         $dictionaries := $manifest."sweaf.ia.dictionaries";
-        $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
         $technologies := $manifest.technologies.items;
         $tactical_units := $manifest."sweaf.ba.tactical_units";
-        $units := $tactical_units.$sift(function ($v) { $v.type = "bu" });
-
         [$systems.$spread().(
-          
           $system_id := $keys()[0];
-          $bu_id := $split($system_id, ".", 2) ~> $join('.');
-          $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $systems, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
-          $tactical_unit := $systems_parameters.tactical_unit;
-          $.*.(
+          $system := $.*;    
+          $systems_parameters := $get_systems_parameters($system_id, $systems, $tactical_units);
+          $tu := $systems_parameters.tactical_unit;
+          $tu_block := $get_parent_tu($system.tactical_unit, $tactical_units, ["block"]);
+          $tu_block := ($tu_block) ? $tu_block.title : "Блок не найден";
+          $tu_bu := $get_parent_tu($system.tactical_unit, $tactical_units, ["bu"]);
+          $tu_bu := ($tu_bu) ? $tu_bu.title : "БЮ не найден";
+          $tu_cluster := $get_parent_tu($system.tactical_unit, $tactical_units, ["cluster"]);
+          $tu_cluster := ($tu_cluster) ? $tu_cluster.title : "Кластер не найден";
+          $system.(
             {
               "id": $system_id,
               "link_to_system": "/architect/components/" & $system_id,
               "title": title,
               "entity": entity,
               "guid": guid,
+              "system_status": system_status,
               "dev_model": dev_model,
               "critical_level": critical_level,
-              "system_status": system_status,
               "short_description": short_description,
               "description": description,
-              "system_entities": "Ссылка",
-              "link_to_system_entities": "/entities/sweaf.ia.business_entities/business_entities_table_in_systems.filtered?system_id=" & $system_id,
               "deployment_card": "Ссылка",
               "link_to_deployment_card": "/entities/sweaf.ta.environments/deployment_card?id=" & $system_id,
-              "application_owner": $eval($functions.get_account,{"username": $systems_parameters.application_owner, "accounts": $accounts}).title,
-              "business_owners": $systems_parameters.business_owners.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title]),
-              "architect": $eval($functions.get_account,{"username": $systems_parameters.architect, "accounts": $accounts}).title,
-              "budget_holder": $eval($functions.get_account,{"username": $systems_parameters.budget_holder, "accounts": $accounts}).title,
-              "budget_holders_bu": $lookup($units, $eval($functions.get_account,{"username": $systems_parameters.budget_holder, "accounts": $accounts}).bu).title,
-              "owner_unit":  $bu_id ? $lookup($units, $bu_id).title : $bu_id,
-              "tactical_unit":  $tactical_unit,
+              "application_owner": $get_account($systems_parameters.application_owner, $accounts).title,
+              "business_owners": $systems_parameters.business_owners.([$get_account($, $accounts).title]),
+              "architect": $get_account($systems_parameters.architect, $accounts).title,
+              "budget_holder": $get_account($systems_parameters.budget_holder, $accounts).title,
+              "owner_unit": $tu_bu,
+              "tu_block": $tu_block,
+              "tu_cluster": $tu_cluster,
+              "tu": $tu,
+              "public_service": public_service,
+              "ext_dependencies": ext_dependencies,
               "prod_url": $distinct(urls[id = "prod"].url),
+              "confluence_url": urls[id = "confluence"].url,
               "technologies": $map(technologies, function($tech, $i, $a){
-                  $filter($technologies.$spread(), function($v, $i, $a) {
-                      $tech in $v.*.aliases
-                  }).(
-                      $keys()[0]
-                  )
+                $filter($technologies.$spread(), function($v, $i, $a) {
+                  $tech in $v.*.aliases
+                }).(
+                  $keys()[0]
+                )
               })
             }
           );
         )]^(id)
       )
-
 
   swamp.dataset.repositories:
     source: >
@@ -100,3 +103,108 @@ datasets:
         $append($GOOD_RESULT, $BAD_RESULT);
       )
 
+  # Dataset используемый для расчета метрик по системам
+  samolet.dataset.sys_metrics:
+    source: >
+      (
+        $manifest := $;
+        $dictionaries := $manifest."sweaf.ia.dictionaries";
+        $accounts := $dictionaries."accounts".parameters;
+        $active_statuses := $dictionaries."settings.system_status".parameters[is_system_active].name;
+        $ratings := $dictionaries."system_health.ratings".parameters;        
+        $tactical_units := $manifest."sweaf.ba.tactical_units";
+        $systems := $manifest.components.$sift(function ($v) { $v.entity = "system" and $v.system_status in $active_statuses });
+        $tu_blocks := $tactical_units.$sift(function ($v) { $v.type = "block" });
+        $components := components.$sift(function ($v) { $v.entity = "component" or $v.entity = "database" or $v.entity = "queue"  });
+
+        $systems := $systems.$spread().(
+          $system_id := $keys();
+          $system := $.*;
+          /*Нужно добавить id системы, чтобы получить индикатор здоровья*/
+          $system := $add_object_id($system_id, $.*);
+          $systems_parameters := $get_systems_parameters($system_id, $systems, $tactical_units);
+          $tu_block := $get_parent_tu($system.tactical_unit, $tactical_units, ["block"]);
+          $tu_block := ($tu_block) ? $tu_block : {"title": "Блок не найден", "type": "block"};
+          $indicators := $get_system_indicators($system, $dictionaries);
+          $is_default_rating := ($count($filter($system.indicators, function ($v) { $not($v.fit = "none" and $v.comment = "Автоматически сгенерированный комментарий") })) > 0) ? false : true;
+          $rating := $get_indicators_total_rating($indicators, $dictionaries);
+          $budget_holder_account := $get_account($systems_parameters.budget_holder, $accounts);
+          $architect := $get_account($systems_parameters.architect, $accounts);
+          
+          $system := $merge(
+            [
+              $system,
+              {                
+                "tu_block": $tu_block,
+                "rating":  $rating,
+                "is_default_rating": $is_default_rating,
+                "budget_holder_account": $budget_holder_account,
+                "architect": $architect
+              }
+            ]
+          );
+        );
+        
+        {
+          "systems": $systems,
+          "tu_blocks": $tu_blocks,
+          "components": $components,
+          "ratings": $ratings
+        };
+      )
+
+  # Формируем данные для контроля функциональности
+  samolet.dataset.system_aspects:
+    source: >
+      (
+        $manifest := $;
+        $systems := $manifest.components.$sift(function($v) { $v.entity="system" });
+        $dictionaries := $manifest."sweaf.ia.dictionaries";
+        $accounts := $dictionaries."accounts".parameters;
+        $business_areas := $dictionaries."settings.business_areas".parameters;
+        $tactical_units := $manifest."sweaf.ba.tactical_units";
+        $aspects := $manifest.aspects;
+        
+        $system_aspects := $systems.$spread().(
+          $system_id := $keys()[0];
+          $system := $add_object_id($system_id, $.*);
+          $systems_parameters := $get_systems_parameters($system_id, $systems, $tactical_units);
+          $architect := $get_account($systems_parameters.architect, $accounts);
+          $tu_block := $get_parent_tu($system.tactical_unit, $tactical_units, ["block"]);
+          $tu_block := ($tu_block) ? $tu_block : "Блок не найден";
+          
+          $sys_aspects := $exists($system.aspects)
+          ?
+            (
+              $map($system.aspects, function($aspect)
+                {(
+                  $sys_aspects := $get_sys_aspect($aspect, $aspects, $business_areas);            
+                  $sys_aspects := $merge([$sys_aspects,
+                    {
+                      "architect" : $architect.title,
+                      "acc_link" : $architect.acc_link,
+                      "system" : $system.title,
+                      "system_id" : $system_id,
+                      "link_to_system": "/architect/components/" & $system_id,
+                      "tu_block" : $tu_block
+                    }
+                  ]);
+                )}
+              )
+            )
+          : 
+            (
+              $sys_aspects := $get_sys_aspect("", $aspects, $business_areas);
+              $sys_aspects := $merge([$sys_aspects,
+                {
+                  "architect" : $architect.title,
+                  "acc_link" : $architect.acc_link,
+                  "system" : $system.title,
+                  "system_id" : $system_id,
+                  "link_to_system": "/architect/components/" & $system_id,
+                  "tu_block" : $tu_block
+                }
+              ]);
+            )
+        );
+      )

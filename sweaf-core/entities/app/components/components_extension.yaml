@@ -112,37 +112,36 @@ entities:
         source: >
           (
             $system_id := $params.component;
-            $manifest := $;        
-            $dictionaries := $manifest."sweaf.ia.dictionaries";
-            $functions := $manifest.functions;
-            $tactical_units := $manifest."sweaf.ba.tactical_units";
+            $manifest := $;
+            $dictionaries := $manifest."sweaf.ia.dictionaries";            
             $accounts := $dictionaries."accounts".parameters;
-            $components := $manifest.components;
-            $systems_parameters := $eval($functions.get_systems_parameters, {'system_id': $system_id,'components': $components, 'dictionaries': $dictionaries, 'tactical_units': $tactical_units});
+            $systems := $manifest.components.$sift(function($v) { $v.entity="system" });
+            $tactical_units := $manifest."sweaf.ba.tactical_units";
+            $systems_parameters := $get_systems_parameters($system_id, $systems, $tactical_units);            
             $contacts := $dictionaries."settings.contacts".parameters.(
-                $name := name;
-                $contact_account_names := $spread($systems_parameters).$sift(function ($v, $k) { $k = $name }).*;
-                {
+              $name := name;
+              $contact_account_names := $spread($systems_parameters).$sift(function ($v, $k) { $k = $name }).*;
+              {
                 "title": title,
                 "scrum_title": scrum_title,
                 "is_optional": is_optional,
                 "order_index": order_index,
                 "account_names": [$contact_account_names]
-                };
+              };
             )[$not(is_optional) or $count(account_names) > 0];
-
+            
             $sort($contacts, function ($l, $r) { $l.order_index > $r.order_index }).(
-                  $contact_settings := $;
-                  account_names.(
-                    $account := $eval($functions.get_account,{"username": $, "accounts": $accounts});
-                    {
-                      "title": $contact_settings.title,
-                      "scrum": $contact_settings.scrum_title,
-                      "res_persons": $account.title,
-                      "acc_persons": $account.name,
-                      "acc_link": $account.acc_link
-                    } 
-                  )
+              $contact_settings := $;
+              account_names.(
+              $account := $get_account($, $accounts);              
+                {
+                  "title": $contact_settings.title,
+                  "scrum": $contact_settings.scrum_title,
+                  "res_persons": $account.title,
+                  "acc_persons": $account.name,
+                  "acc_link": $account.acc_link
+                } 
+              )
             );
           )
 
@@ -305,26 +304,25 @@ entities:
           (
             $system_id := $params.component;            
             $system_tech := $lookup($.components, $system_id).technologies;
+            $type($system_tech) = "null" ? $system_tech := "";  
             $all_tech := $.technologies.(
-              $sections := $.sections;
-              $.items.$spread().(
+                $sections := $.sections;
+                $.items.$spread().(
                 $_id := $keys()[0];
                 $.*.(
-                  $TECH := $ ~> | $ | {"title": $_id, "aliases": $join($.aliases, ", ")} |;
-                  $.aliases.(
+                    $TECH := $ ~> | $ | {"title": $_id, "aliases": $join($.aliases, ", ")} |;
+                    $.aliases.(
                     {$: $TECH}
-                  )
+                    )
                 )
-              );
+                );
             );
 
-            $system_tech .(
-              $system_technologies := $;
-              $lookup($all_tech, $system_technologies) ? $lookup($all_tech, $system_technologies) : {"title": $system_technologies, "link": "", "section": "", "status": "Не определён", "aliases": ""}
+            $system_tech.(
+                $system_technologies := $;
+                $lookup($all_tech, $system_technologies) ? $lookup($all_tech, $system_technologies) : {"title": $system_technologies, "link": "", "section": "", "status": "Не определён", "aliases": ""}
             );
-
           )
-
       sys_problems:
         params:
           type: object
@@ -343,9 +341,9 @@ entities:
           - value: description
             text: Описание
         source: >
-          (            
+          (
             $system_id := $params.component;
-            $matcher := $eval("/^.*" & $system_id & "$/");
+            $matcher := $eval("/^.*" & $system_id & "*/");
             $manifest := $;
             $problems := (
               $.rules.validators.$spread().(
@@ -370,18 +368,29 @@ entities:
         # Определяем заголовок таблицы
         headers:
           - value: id             # Идентификатор зависимого компонента
-            text: Идентификатор   # Заголовок колокнки
+            text: ИД системы   # Заголовок колонки
             sortable: true        # Производить сортировку по колонке
             align: left           # Форматирование по горизонтали
             width: 40%            # Ширина колонки
             link: link
           - value: title          # Наименование зависимого компонента
-            text: Наименование
+            text: Система
             sortable: true
             align: left           # Форматирование по горизонтали
             width: 40%
             link: link
-          - value: direction      # Направление связи
+          - value: parent_tu
+            text: Блок\Кластер
+            sortable: true
+            align: left
+            width: 20%
+          - value: architect_parent_tu
+            text: ФИО
+            sortable: true
+            align: left
+            width: 40%
+            link: acc_link
+          - value: direction
             text: Направление связи
             sortable: true
             align: center
@@ -389,15 +398,31 @@ entities:
         # Данные для шаблона
         source: >
           (
-            [$distinct(components.$spread().(
+            $system_id := $params.component;
+            $manifest := $;            
+            $tactical_units := $manifest."sweaf.ba.tactical_units";
+            $dictionaries := $manifest."sweaf.ia.dictionaries";
+            $accounts := $dictionaries."accounts".parameters;
+            $systems := $manifest.components.$sift(function ($v) { $v.entity = "system"});
+
+            [$distinct($systems.$spread().(
               $id := $keys()[0];
-              $title := *.title;
-              $links := $distinct($.*.links[id=$params.component].("" & direction));
-              $links.{
-                "id": $id,
-                "title": $title,
-                "direction": $links,
-                "link": "/architect/components/" & $id
-              }
+              $system := *;
+              $tu_id := $system.tactical_unit;
+              $title := $system.title;
+              $links := $distinct($system.links[id=$system_id].("" & direction)).(
+                $tu_block := $get_parent_tu($system.tactical_unit, $tactical_units, ["block"]);
+                $tu_block_title := ($tu_block) ? $tu_block.title : "Блок не найден";
+                $architect_tu_block_title := $get_account($tu_block.architect, $accounts).title;
+                {
+                    "id": $id,
+                    "title": $title,
+                    "direction": $,
+                    "link": "/architect/components/" & $id,
+                    "tu_block_title": $tu_block_title,
+                    "architect_tu_block_title": $architect_tu_block_title,
+                    "acc_link": $account.acc_link
+                }
+              );
             ))^(id)]
           )

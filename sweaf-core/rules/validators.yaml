@@ -26,47 +26,53 @@ rules:
             "description": "Возможно компонент [" & componentID & "] описан некорректно в контексте [" & contextID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",            
             "location": "/architect/contexts/" & contextID
         }])
-    dochub.metamodel.contexts.outof:
-      title: Компоненты вне контекста
-      source: >
-        (
-          $MANIFEST := $;
-          $USED := $distinct(contexts.*.components);
-          [components.$spread().(
-              $componentID := $keys()[0];
-              {
-                  "id" : $componentID,
-                  "mask" : $USED[$wcard($componentID, $)],
-                  "entity" : *.entity
-              }
-          )[$not($exists(mask)) and $not(entity in ["unit", "person"])].{
-            "uid": "[$dh-mm-ofb] " & componentID,
-            "correction": "Добавьте компонент в контекст",
-            "description": "Предполагается, что компонент не включенный в контекст не учтен.",
-            "location": "/architect/components/" & componentID
-          }]
-        )
+    # dochub.metamodel.contexts.outoff:
+    #   title: Компоненты вне контекста
+    #   source: >
+    #     (
+    #       $MANIFEST := $;
+    #       $USED := $distinct(contexts.*.components);
+    #       [components.$spread().(
+    #           $componentID := $keys()[0];
+    #           {
+    #               "componentID" : $componentID,
+    #               "mask" : $USED[$wcard($ID, $)],
+    #               "dev_model": *.dev_model
+    #           }
+    #       )[$not($exists(mask)) and $not(dev_model in ["external", "none"])].{
+    #         "uid": "[$dh-mm-ofb] " & componentID,
+    #         "correction": "Добавьте компонент [" & componentID & "] в контекст",
+    #         "description": "Предполагается, что компонент не включенный в контекст не учтен.",
+    #         "location": "/architect/components/" & componentID
+    #       }]
+    #     )
     dochub.metamodel.components:
       title: Контроль целостности компонентов
     dochub.metamodel.components.no_found_aspect:
       title: Аспект не определен
       source: >
-        ([(  
+        (
           $MANIFEST := $;
-          components.$spread().(                      
-            $COMPONENT_ID := $keys()[0];
-            *.aspects.
-              {                   
-                "componentID": $COMPONENT_ID,
-                "aspectID": $
-              };
-          )[$ and $not($exists($lookup($MANIFEST.aspects, aspectID)))]
-        ).{
-            "uid": "[$dh-mm-nfa] " & componentID & " | " & aspectID,
-            "correction": "Укажите аспект [" & aspectID & "] корректно или удалите ссылку на него в компоненте [" & componentID & "]",
-            "description": "Возможно аспект [" & aspectID & "] описан некорректно в компоненте [" & componentID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
-            "location": "/architect/aspects/" & aspectID
-        }])
+          components.$spread().(
+          $ID := $keys()[0];
+          $.*.aspects.$spread().(
+            $aspectID := $string($);
+            $aspect_list := $split($aspectID,".");
+            $aspect_position := $count($aspect_list) - 1;
+            $aspectID := $aspect_list[$aspect_position];
+            $type($aspectID) = "string" ? (
+              $not($exists($lookup($MANIFEST.aspects, $aspectID))) ? (                
+              {
+                  "uid": "[$dh-mm-nfa] " & $ID & " | " & $aspectID,
+                  "correction": "Укажите аспект [" & $aspectID & "] корректно или удалите ссылку на него в компоненте [" & $ID & "]",
+                  "description": "Возможно аспект [" & $aspectID & "] описан некорректно в компоненте [" & $ID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
+                  "location": "/architect/aspects/" & $aspectID
+              }
+              )
+            )
+            )
+          )
+        )
     dochub.metamodel.components.no_define_parent:
       title: Компонент верхнего уровня не определен
       source: >
@@ -95,19 +101,23 @@ rules:
       title: Связь с несуществующими компонентами
       source: >
         (
-            $MANIFEST := $;
-            [[components.$spread().(
-                $ID := $keys()[0];
-                $.*.links.{
-                    "ownerID": $ID,
-                    "linkID": id
-                }
-            )[$ and $not($exists($lookup($MANIFEST.components, linkID)))]].{
-                "uid": "[$dh-mm-cmp-lnk-nf] " & ownerID & " | " & linkID,
-                "correction": "Укажите компонент [" & linkID & "] корректно или удалите ссылку на него у компонента [" & ownerID & "]",
-                "description": "Возможно компонент [" & linkID & "] описан некорректно в компоненте [" & ownerID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
-                "location": "/architect/components/" & ownerID
-            }]
+          $MANIFEST := $;
+          components.$spread().(
+            $ID := $keys()[0];
+            $.*.links.$spread().(
+              $linkID := $.id;
+              $type($linkID) = "string" ? (
+                  $not($exists($lookup($MANIFEST.components, $linkID))) ? (                
+                  {
+                      "uid": "[$dh-mm-cmp-lnk-nf] " & $ID & " | " & $linkID,
+                      "correction": "Укажите компонент [" & $linkID & "] корректно или удалите ссылку на него у компонента [" & $ID & "]",
+                      "description": "Возможно компонент [" & $linkID & "] описан некорректно в компоненте [" & $ID & "] или описан в подключаемой кодовой базе архитектуры, которая сейчас недоступна.",
+                      "location": "/architect/components/" & $ID               
+                  }
+                  )
+                )
+              )
+            )
         )
     dochub.metamodel.aspects:
       title: Контроль целостности аспектов
