@@ -1,0 +1,35 @@
+entities: # Сущности расширенной метамодели  
+  sweaf.ba.tactical_units:
+    title: Модель управления тактическими юнитами организации
+    description: >
+        При помощи данной сущности описываются справочники для хранения различной статической информации используемой внутри DocHub
+    schema:
+      type: object
+      patternProperties:
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z0-9][a-zA-Z0-9_-]*)*$":
+          type: object
+          properties:
+            title:
+              title: Наименование тактического юнита
+              type: string
+            type:
+              title: Физический смысл справочника
+              enum: ["bu", "block", "cluster",""]
+            owner:
+              title: Владелец
+              type: string
+            parrent:
+              title: Вышестоящий уровень справочника сущности sweaf.ba.tactical_units
+              $ref: "#/$rels/sweaf.ba.tactical_units.tactical_unit"
+            guid:
+              title: Globally unique identifier
+              type: string
+              pattern: "/^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i"
+          required:
+            - title            
+    objects:
+      tactical_unit:
+        route: "/"
+        title: Тактический юнит
+        symbol: "do"
+
