@@ -76,10 +76,7 @@ entities:
         
                       /* Добавляем аспекты */
                       $result := $result & $join($component.aspects.(
-                          /* Добавлена группа аспектов, поэтому всегда берем последний элемент в массиве */
-                          $aspect_list := $split($,".");
-                          $aspect_position := $count($aspect_list) - 1;
-                          $aspect := $lookup($manifest.aspects,$aspect_list[$aspect_position]);
+                          $aspect := $lookup($manifest.aspects, $);
                           $title := $aspect ? $aspect.title : $;
                           $ = $focusId ?
                           "$EntityAspect(\""

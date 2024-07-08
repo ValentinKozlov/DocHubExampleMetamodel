@@ -19,7 +19,7 @@ rules:
               }
           )[entity="system" and ($not(guid) or $length(guid) = 0)].(
               {
-                  "uid": "[$smlt-guid-empty] " & system_id,
+                  "uid": "[$swamp-guid-empty] " & system_id,
                   "location": "/architect/components/" & system_id,
                   "correction": "Для системы [" & system_id & "] необходимо сгенерировать guid",
                   "description": "У каждой системы должен быть уникальный идентификатор в поле guid"
@@ -49,7 +49,7 @@ rules:
             }
           )[count>1].(
             {
-              "uid": "[$smlt-guid-not-unique] " & guid,
+              "uid": "[$swamp-guid-not-unique] " & guid,
               "location": "Нет",
               "correction": "Найдено совпадение guid для [" & count & "] систем. Найдите все системы с одинаковыми guid и сгенерируйте новые.",
               "description": "Каждая система должна иметь уникальный идентификатор в поле guid."

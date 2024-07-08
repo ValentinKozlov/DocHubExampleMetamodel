@@ -529,6 +529,10 @@ functions:
 
   get_ext_systems_pattern:
     title: Получает строку поиска в виде регулярного выражения для определения внешних систем
+    # Вводим фиктивный параметр, так как в новой версии DocHub функции без параметров запрещены
+    params:
+      - alias: dummy_parameter
+        required: false
     code: >  
       (
         $ext_systems_pattern := /world\..*/;
