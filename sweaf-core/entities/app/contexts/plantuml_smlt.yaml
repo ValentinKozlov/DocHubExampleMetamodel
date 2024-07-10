@@ -27,8 +27,8 @@ entities:
               $domains_number := $count($tu);
 
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
-              /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_frogs берем его, а для swamp.bu_frogs.platform10d берем platform10d */
-              $tactical_unit := $lookup($manifest."sweaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);              
+              /*чем 2 домена, то берем его целиком. Например, для идентификатора samolet.bu_frogs берем его, а для samolet.bu_frogs.platform10d берем platform10d */
+              $tactical_unit := $lookup($manifest."smlteaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);
               $component := $lookup($components, $domain);              
               
               /* Возвращение оригинального идентификатора происходит только с 3-го домена: компания.бизнес-юнит.имя добавленного кластера */
@@ -60,7 +60,7 @@ entities:
                   $not($isAreaBegin) and $component ? (
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
-                      $system_rate := $get_systems_total_rating($originDomain, $manifest.components, $manifest."sweaf.ia.dictionaries");
+                      $system_rate := $get_systems_total_rating($originDomain, $manifest.components, $manifest."smlteaf.ia.dictionaries");
                       $color := $originDomain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
                       $result := "$Entity(\"" 
                           & $entity 
@@ -78,7 +78,9 @@ entities:
                       $result := $result & $join($component.aspects.(
                         $ != null
                         ? (
-                            $aspect := $lookup($manifest.aspects, $);
+                            $aspect_list := $split($,".");
+                            $aspect_position := $count($aspect_list) - 1;
+                            $aspect := $lookup($manifest.aspects,$aspect_list[$aspect_position]);
                             $title := $aspect ? $aspect.title : $;
                             $ = $focusId ?
                             "$EntityAspect(\""
@@ -141,7 +143,7 @@ entities:
             $focusId := $params."dh-focus-id";
 
             /* Для теста */
-            /*$id := "bu_hippos.tactical_units";*/
+            /*$id := "arch.bu_moscow.pal1_sdevelopment";*/
             /*$params := {};*/
 
             /* Получаем доступ к оригинальным данным */
