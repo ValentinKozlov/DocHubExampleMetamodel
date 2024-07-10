@@ -14,8 +14,7 @@ $package:
       dochub: ">=4.1.0"
 
 imports:
-  - datasets/root.yaml
-  - docs/root.yaml
+  - datasets/root.yaml  
   - entities/root.yaml
   - functions/root.yaml
   - rules/root.yaml
