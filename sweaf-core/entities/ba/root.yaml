@@ -1,2 +1,2 @@
-imports:
-  - tactical_units_model.yaml
+imports:    
+  - tactical_units/root.yaml

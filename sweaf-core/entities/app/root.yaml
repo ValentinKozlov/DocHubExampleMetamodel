@@ -4,4 +4,4 @@ imports:
   - contexts/root.yaml
   - documents/root.yaml
   - libraries/root.yaml
-  - sequence_diagrams/root.yaml
+  # - sequence_diagrams/root.yaml

@@ -5,8 +5,8 @@ entities:
       При помощи данной сущности описываются библиотеки
     schema:
       type: object
-      patternProperties:
-        "[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$":
+      patternProperties:        
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z0-9][a-zA-Z0-9_-]*)*$":
           type: object
           properties:
             title:
@@ -89,10 +89,6 @@ entities:
             text: Описание
             sortable: true
             align: left
-          - value: library_id
-            text: ID в DocHub
-            sortable: true
-            align: left
           - value: library_type
             text: Тип библиотеки
             sortable: true
@@ -101,12 +97,27 @@ entities:
             text: Тип управления
             sortable: true
             align: left
+          - value: support_link
+            text: Поддержка
+            link: support
+            sortable: true
+            align: left 
+          - value: repository_link
+            text: Репозиторий
+            link: repository
+            sortable: true
+            align: left 
+          - value: registry_link
+            text: Реестр
+            link: registry
+            sortable: true
+            align: left 
           - value: mentor
             text: Ментор
             sortable: true
             align: left
           - value: maintainers
-            text: Поддерживающие            
+            text: Сопровождающие
             align: left
         source: sweaf.app.dataset.libraries_table_list
       
@@ -229,9 +240,8 @@ datasets:
       (
         $manifest := $;
         $dictionaries := $manifest."sweaf.ia.dictionaries";
-        $functions := $manifest.functions;
         $accounts := $dictionaries."accounts".parameters;
-        $distinct([$manifest."sweaf.app.libraries".$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(
+        $manifest."sweaf.app.libraries".$spread().($merge([{"library_id" : $keys()[0]}, $.*])).(
           {
             "library_id": library_id,
             "link_to_library_entity": "/entities/sweaf.app.libraries/library_card?library_id=" & library_id,
@@ -239,17 +249,23 @@ datasets:
             "description": description,
             "library_type": library_type,
             "control_type": control_type,
-            "mentor": $eval($functions.get_account,{"username": mentor, "accounts": $accounts}).title,
-            "maintainers": $.maintainers.([$eval($functions.get_account,{"username": $, "accounts": $accounts}).title])
+            "support": support,
+            "support_link": support ? "👨‍🔧" : "",
+            "mentor": $get_account(mentor, $accounts).title,
+            "maintainers": $.maintainers.([$get_account($, $accounts).title]),
+            "repository": repository,
+            "repository_link": repository ? "🔗" : "",
+            "registry": registry,
+            "registry_link": registry ? "🔗" : ""
           }
-        )]);
+        );
       )
 
   sweaf.app.dataset.libraries_table_in_systems:
     source: >
       (
         $manifest := $;
-        $distinct([$manifest.components.$spread().(
+        $manifest.components.$spread().(
           $system_id := $keys()[0];
           $system := $;
           $system_title := $.*.title;
@@ -271,5 +287,5 @@ datasets:
               }
               )
           ));
-        )])^(system_id)
+        )^(system_id)
       )

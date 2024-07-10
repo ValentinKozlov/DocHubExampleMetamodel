@@ -28,7 +28,7 @@ entities:
 
               /*Базовая структура соответствует структуре доменов в идентификаторе систем и компонентов, поэтому если текущий идентификатор состоит менее*/
               /*чем 2 домена, то берем его целиком. Например, для идентификатора swamp.bu_frogs берем его, а для swamp.bu_frogs.platform10d берем platform10d */
-              $tactical_unit := $lookup($manifest."sweaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);
+              $tactical_unit := $lookup($manifest."sweaf.ba.tactical_units", $domains_number > 2 ? $tu[$domains_number-1] : $domain);              
               $component := $lookup($components, $domain);              
               
               /* Возвращение оригинального идентификатора происходит только с 3-го домена: компания.бизнес-юнит.имя добавленного кластера */
@@ -50,23 +50,22 @@ entities:
                   "$Region("
                       & $domain_plantuml
                       & ",\"[[/architect/components/"
-                      & $domain_plantuml
+                      & $originDomain
                       & " " & $title
                       & "]]\", ) {\n";
-              ) : "");              
+              ) : "");
 
               /* Если домен является компонентом, выводим его на диаграмму */
               $result := $result & (
                   $not($isAreaBegin) and $component ? (
                       /* Открываем секцию компонента */
                       $entity := $component.entity ? $component.entity : "component";
-                      $system_rate := $eval($manifest.functions.get_systems_total_rating, {'system_id': $originDomain,
-                        'components': $manifest.components, 'dictionaries': $manifest."sweaf.ia.dictionaries", 'functions': $manifest.functions});
+                      $system_rate := $get_systems_total_rating($originDomain, $manifest.components, $manifest."sweaf.ia.dictionaries");
                       $color := $originDomain = $focusId ? "#FFBBCC" : ($exists($system_rate.color) ? $system_rate.color : "");
                       $result := "$Entity(\"" 
                           & $entity 
                           & "\", \""
-                          & "[[/architect/components/" & $domain_plantuml & " " & $component.title & "]]"
+                          & "[[/architect/components/" & $originDomain & " " & $component.title & "]]"
                           & "\", " 
                           & $domain_plantuml                          
                           & ", \""
@@ -77,22 +76,25 @@ entities:
         
                       /* Добавляем аспекты */
                       $result := $result & $join($component.aspects.(
-                          $aspect := $lookup($manifest.aspects, $);
-                          $title := $aspect ? $aspect.title : $;
-                          $ = $focusId ?
-                          "$EntityAspect(\""
-                          & $entity
-                          & "\",\" <back:#FFBBCC>"
-                          & $title
-                          & "\")\n"
-                          :
-                          "$EntityAspect(\""
-                          & $entity
-                          & "\",\"* [[/architect/aspects/"
-                          & $encodeUrlComponent($)
-                          & " " 
-                          & $title
-                          & "]]\")\n"
+                        $ != null
+                        ? (
+                            $aspect := $lookup($manifest.aspects, $);
+                            $title := $aspect ? $aspect.title : $;
+                            $ = $focusId ?
+                            "$EntityAspect(\""
+                            & $entity
+                            & "\",\" <back:#FFBBCC>"
+                            & $title
+                            & "\")\n"
+                            :
+                            "$EntityAspect(\""
+                            & $entity
+                            & "\",\"* [[/architect/aspects/"
+                            & $encodeUrlComponent($)
+                            & " " 
+                            & $title
+                            & "]]\")\n"
+                          )
                       ));
         
                       /* Если компонент является контекстом добавляем дрилдаун */

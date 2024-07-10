@@ -17,7 +17,7 @@ rules:
             }
           )[entity="system" and ($not(technologies) or $count(technologies) = 0) or ("TBD" in technologies)].(
             {
-              "uid": "[$smlt-technologies-empty] " & system_id,
+              "uid": "[$swamp-technologies-empty] " & system_id,
               "location": "/architect/components/" & system_id,
               "correction": "Укажите технологии системы [" & system_id & "]",
               "description": "У каждой системы, разрабатываемой ГК Самолет, должен быть указан список технологий"
