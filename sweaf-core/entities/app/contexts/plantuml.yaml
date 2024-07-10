@@ -76,22 +76,27 @@ entities:
         
                       /* Добавляем аспекты */
                       $result := $result & $join($component.aspects.(
-                          $aspect := $lookup($manifest.aspects, $);
-                          $title := $aspect ? $aspect.title : $;
-                          $ = $focusId ?
-                          "$EntityAspect(\""
-                          & $entity
-                          & "\",\" <back:#FFBBCC>"
-                          & $title
-                          & "\")\n"
-                          :
-                          "$EntityAspect(\""
-                          & $entity
-                          & "\",\"* [[/architect/aspects/"
-                          & $encodeUrlComponent($)
-                          & " " 
-                          & $title
-                          & "]]\")\n"
+                        $ != null
+                        ? (
+                            $aspect_list := $split($,".");
+                            $aspect_position := $count($aspect_list) - 1;
+                            $aspect := $lookup($manifest.aspects,$aspect_list[$aspect_position]);
+                            $title := $aspect ? $aspect.title : $;
+                            $ = $focusId ?
+                            "$EntityAspect(\""
+                            & $entity
+                            & "\",\" <back:#FFBBCC>"
+                            & $title
+                            & "\")\n"
+                            :
+                            "$EntityAspect(\""
+                            & $entity
+                            & "\",\"* [[/architect/aspects/"
+                            & $encodeUrlComponent($)
+                            & " " 
+                            & $title
+                            & "]]\")\n"
+                          )
                       ));
         
                       /* Если компонент является контекстом добавляем дрилдаун */
