@@ -1,13 +1,13 @@
 imports:
   - dochub/root.yaml
-  - sweaf-core/root.yaml
-  - mm-discovery/root.yaml
+  # - sweaf-core/root.yaml
+  # - mm-discovery/root.yaml
 
 swamphub:
   metamodel:
     version: <VERSION>
 
-docs:
-  dochub.devtool:
-    location: DevTool
-    type: devtool
+# docs:
+#   dochub.devtool:
+#     location: DevTool
+#     type: devtool

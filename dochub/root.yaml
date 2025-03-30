@@ -20,5 +20,5 @@ $package:
 #   rules       - Правила контроля целостности описания архитектуры
 imports:
   - entities/root.yaml
-  # - rules/root.yaml
+  - rules/root.yaml
   - functions/root.yaml
