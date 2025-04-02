@@ -38,7 +38,7 @@ entities:
                   );
                       "$Region("
                       & $domain
-                      & ",\"[[/architect/components/"
+                      & ",\"[[/@component/"
                       & $domain
                       & " " & $title
                       & "]]\", ) {\n";
@@ -53,7 +53,7 @@ entities:
                       $result := "$Entity(\"" 
                           & $entity 
                           & "\", \""
-                          & "[[/architect/components/" & $domain & " " & $component.title & "]]"
+                          & "[[/@component/" & $domain & " " & $component.title & "]]"
                           & "\", " 
                           & $domain                          
                           & ", \""
@@ -75,7 +75,7 @@ entities:
                           :
                           "$EntityAspect(\""
                           & $entity
-                          & "\",\"* [[/architect/aspects/"
+                          & "\",\"* [[/@aspect/"
                           & $encodeUrlComponent($)
                           & " " 
                           & $title
