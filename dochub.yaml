@@ -1,2 +1,6 @@
+swamphub:
+  metamodel:
+    version: <VERSION>
+
 imports:
   - root.yaml

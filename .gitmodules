@@ -1,0 +1,3 @@
+[submodule "ceaf-app"]
+	path = ceaf-app
+	url = https://github.com/DocHubTeam/ceaf-app.git

@@ -1,13 +1,7 @@
 imports:
-  - dochub/root.yaml
+  - ceaf-app/dochub.yaml
   # - sweaf-core/root.yaml
   # - mm-discovery/root.yaml
 
-swamphub:
-  metamodel:
-    version: <VERSION>
 
-# docs:
-#   dochub.devtool:
-#     location: DevTool
-#     type: devtool
+
